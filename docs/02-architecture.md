@@ -101,7 +101,7 @@ window or blocked site data degrades to "this session only" instead of crashing:
 |---|---|---|
 | `matches` | One record per match: its config and its whole event log. A match is ~100 darts × ~200 B, so rewriting the record per dart is cheaper than the complexity of a separate event store | a year of heavy play is a few MB |
 | `settings` | Caller on/off, entry mode, locale | trivial |
-| `frames` *(A4)* | Opt-in captured frames for training, with their labels | ~80 KB/frame JPEG, quota-managed, explicitly exportable and deletable |
+| `frames` | Captured frames with their labels and the calibration they were taken under | ~50–150 KB/frame JPEG; automatic capture pauses at 40 unlabelled frames, and everything is explicitly exportable and deletable |
 
 Nothing is stored that is derivable: no scores, no averages, no snapshots. That
 module is also the only place that touches persistence, so optional hosted sync
@@ -123,12 +123,18 @@ later is one file rather than a refactor.
 `apps/web/src/vision/` is written so the game never imports it directly:
 
 ```
-camera/      getUserMedia, constraints, frame pump, motion & settle gate
-pose/        board keypoints → homography → rectified board view
-detect/      ONNX session (in a Worker), tip heatmaps → coordinates
-score/       rectified coordinates → hit, with a confidence and a margin-to-wire
-session/     the state machine: idle → motion → settle → propose → confirm
+camera.ts    getUserMedia, device list, thumbnails, JPEG grabs      (built)
+settle.ts    the motion gate: idle → moving → settled, per throw    (built, tested)
+useCamera.ts the two joined together as a hook                      (built)
+detect/      ONNX session (in a Worker), tip heatmaps → coordinates (to come)
+session/     idle → motion → settle → propose → confirm             (to come)
 ```
+
+The board geometry half already lives in `packages/core/src/vision/`:
+`homography.ts` (four-point fit with Hartley normalisation, inversion,
+reprojection error) and `calibration.ts` (the landmarks and the wireframe).
+It is pure maths over points, so it is unit tested against a synthetic camera
+rather than against a photograph.
 
 `session/` emits proposals. The game store decides what to do with them. This
 means autoscoring can be turned off, replaced, or run in "shadow mode" (it

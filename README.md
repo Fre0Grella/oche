@@ -21,6 +21,7 @@ the spoken caller work today, on a phone or a laptop.
 | **Caller** | The score is spoken, so nobody has to look at the screen. |
 | **Checkout** | What to aim at on every finishable score, following the configured out rule. |
 | **Stats** | The usual ones (3-dart average, first 9, checkout %, darts per leg, tons) plus the ones only a camera can give: where your darts actually land, how tightly they group, which way you miss, and where *you* should be aiming. |
+| **Capture lab** | Calibrate the camera on your board, then every settled throw is photographed and you mark where the darts landed. In a game, **Report** does the same for a score that came out wrong. That is the training set for the autoscorer, and it stays on your device until you export it. |
 | **Two device modes** | **Solo:** the phone does everything. **Paired:** a laptop does the vision work and the phone is just a camera, over WebRTC, so the phone stays cool. |
 
 Offline-first: it's a PWA, all game data lives on your device, and there is no

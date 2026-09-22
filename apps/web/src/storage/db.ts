@@ -1,5 +1,6 @@
 /**
- * Local storage: matches as append-only event logs, plus a few settings.
+ * Local storage: matches as append-only event logs, captured frames, and a few
+ * settings.
  *
  * Everything stays on the device. A `SyncAdapter` boundary is deliberately not
  * introduced yet — there is nothing to sync with — but this module is the only
@@ -8,35 +9,21 @@
 
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
-import type { MatchEvent, X01Config } from '@oche/core';
+import { DEFAULT_SETTINGS, type CapturedFrame, type Settings, type StoredMatch } from './types.js';
 
-export interface StoredMatch {
-  id: string;
-  createdAt: number;
-  updatedAt: number;
-  config: X01Config;
-  /** The append-only log. The match state is derived from it, never stored. */
-  events: MatchEvent[];
-  finished: boolean;
-}
-
-export interface Settings {
-  callerEnabled: boolean;
-  entryMode: 'board' | 'keypad';
-  locale: string;
-}
-
-export const DEFAULT_SETTINGS: Settings = {
-  callerEnabled: true,
-  entryMode: 'board',
-  locale: 'en',
-};
+export { DEFAULT_SETTINGS };
+export type { CapturedFrame, Settings, StoredMatch } from './types.js';
 
 interface OcheDB extends DBSchema {
   matches: {
     key: string;
     value: StoredMatch;
     indexes: { 'by-updated': number };
+  };
+  frames: {
+    key: string;
+    value: CapturedFrame;
+    indexes: { 'by-ts': number };
   };
   settings: {
     key: string;
@@ -45,12 +32,15 @@ interface OcheDB extends DBSchema {
 }
 
 const DB_NAME = 'oche';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<OcheDB>> | null = null;
 
 /** In-memory stand-in, so tests and private-mode browsers still work. */
-const memory = { matches: new Map<string, StoredMatch>(), settings: new Map<string, unknown>() };
+const memory = {
+  matches: new Map<string, StoredMatch>(),
+  settings: new Map<string, unknown>(),
+};
 
 function hasIndexedDB(): boolean {
   return typeof indexedDB !== 'undefined';
@@ -60,10 +50,16 @@ async function db(): Promise<IDBPDatabase<OcheDB> | null> {
   if (!hasIndexedDB()) return null;
   if (!dbPromise) {
     dbPromise = openDB<OcheDB>(DB_NAME, DB_VERSION, {
-      upgrade(database) {
-        const matches = database.createObjectStore('matches', { keyPath: 'id' });
-        matches.createIndex('by-updated', 'updatedAt');
-        database.createObjectStore('settings');
+      upgrade(database, oldVersion) {
+        if (oldVersion < 1) {
+          const matches = database.createObjectStore('matches', { keyPath: 'id' });
+          matches.createIndex('by-updated', 'updatedAt');
+          database.createObjectStore('settings');
+        }
+        if (oldVersion < 2) {
+          const frames = database.createObjectStore('frames', { keyPath: 'id' });
+          frames.createIndex('by-ts', 'ts');
+        }
       },
     });
   }
@@ -73,6 +69,15 @@ async function db(): Promise<IDBPDatabase<OcheDB> | null> {
     // Blocked or unavailable (private window, cleared site data): fall back.
     return null;
   }
+}
+
+/**
+ * The database, for the frame store. Frames are megabytes of JPEG, so there is
+ * no in-memory fallback for them: without IndexedDB the capture lab says so
+ * rather than filling a tab's heap and losing the lot on reload.
+ */
+export async function framesDb(): Promise<IDBPDatabase<OcheDB> | null> {
+  return db();
 }
 
 export async function putMatch(match: StoredMatch): Promise<void> {
@@ -132,4 +137,11 @@ export async function saveSetting<K extends keyof Settings>(key: K, value: Setti
     return;
   }
   await database.put('settings', value, key);
+}
+
+/** How much room the browser is giving us, for the capture lab's warning. */
+export async function storageEstimate(): Promise<{ usage: number; quota: number } | null> {
+  if (!navigator.storage?.estimate) return null;
+  const estimate = await navigator.storage.estimate();
+  return { usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 };
 }

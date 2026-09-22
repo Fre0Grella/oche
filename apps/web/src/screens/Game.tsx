@@ -2,6 +2,7 @@ import { formatHit, formatRoute, type Hit, type Point } from '@oche/core';
 import { useState } from 'react';
 
 import { Dartboard, type BoardDart } from '../components/Dartboard.js';
+import { GameCamera } from '../components/GameCamera.js';
 import { Keypad } from '../components/Keypad.js';
 import { Scoreboard } from '../components/Scoreboard.js';
 import { unlockCaller } from '../caller/caller.js';
@@ -11,6 +12,7 @@ import { useMatchStore } from '../store/match.js';
 export function Game() {
   const t = useStrings();
   const snapshot = useMatchStore((s) => s.snapshot);
+  const match = useMatchStore((s) => s.match);
   const settings = useMatchStore((s) => s.settings);
   const throwDart = useMatchStore((s) => s.throwDart);
   const correctDart = useMatchStore((s) => s.correctDart);
@@ -129,6 +131,18 @@ export function Game() {
       </div>
 
       {settings.entryMode === 'board' && !finished && <p className="hint">{t.game.sourceNote}</p>}
+
+      {match && (
+        <GameCamera
+          matchId={match.id}
+          darts={(visit?.darts ?? []).map((dart) => ({
+            id: dart.id,
+            hit: dart.hit,
+            ...(dart.pos ? { pos: dart.pos } : {}),
+          }))}
+          onCorrect={(dartId, hit, pos) => correctDart(dartId, hit, pos)}
+        />
+      )}
 
       {finished && (
         <div className="overlay">

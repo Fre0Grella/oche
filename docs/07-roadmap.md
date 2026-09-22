@@ -39,12 +39,20 @@ two snapshots, so it is unit tested without a speaker.
 
 **Outstanding**: the recorded clip pack (doc 06), per-player mute, volume.
 
-### A4. Capture lab — *the unlock for Track B*
-Camera preview, four-point manual board calibration, frame capture on settle,
-rectified-view tip labelling, local storage of frames + labels, zip export.
+### A4. Capture lab — done
+Camera preview, four-point calibration with the board wireframe drawn over the
+image so the fit is checkable by eye, automatic capture when the board settles,
+tip labelling by tapping the photograph, local storage, and a zip export in the
+format `ml/` will read.
 
-**Done when**: Marco can spend a practice session and end up with a few hundred
-labelled images of his own board, in the format the training scripts read.
+Plus the same thing inside a game: with the camera on, every settled throw is
+photographed, and **Report** opens that photograph so anyone can say where the
+dart actually landed. That corrects the score *and* files a labelled example —
+which is exactly the flywheel the autoscorer needs, working before the
+autoscorer exists.
+
+**Outstanding**: model-assisted pre-labelling (markers placed by a first model,
+so labelling becomes nudging), and a review screen for frames already labelled.
 
 > From here, data collection runs in parallel with everything below.
 
