@@ -44,13 +44,15 @@ export function announce(before: MatchSnapshot | null, after: MatchSnapshot): st
   const total = visit.darts.reduce((sum, dart) => sum + dart.scored, 0);
   const phrases = [visit.busted ? t.caller.bust : t.caller.visit(total)];
 
-  // Then the score the next player is on, when they are within checkout range.
-  const current = after.current;
-  if (current !== null && current.dartInVisit === 0) {
-    if (current.remaining <= 170) {
-      phrases.push(t.caller.requires(playerName(after, current.playerId), current.remaining));
-    } else if (after.config.players.length > 1) {
-      phrases.push(t.caller.toThrow(playerName(after, current.playerId)));
+  // Then what the player who just threw is left on — them, not the next player.
+  // Hearing "you require thirty-two" while walking back from the board is the
+  // whole point of the caller; hearing the opponent's remaining is noise.
+  if (visit.scoreAfter <= 170) {
+    phrases.push(t.caller.requires(playerName(after, visit.playerId), visit.scoreAfter));
+  } else {
+    const next = after.current;
+    if (next !== null && next.playerId !== visit.playerId) {
+      phrases.push(t.caller.toThrow(playerName(after, next.playerId)));
     }
   }
 

@@ -8,6 +8,11 @@ The ordering below is chosen so that data collection — the long pole — start
 early as possible, and so that nothing is built before the thing that proves it
 was needed.
 
+**Order changed, 2026-09-22.** The deploy half of A7 moved ahead of A4: a browser
+refuses camera access outside a secure context, so the capture lab cannot collect
+a single frame until the app is served over HTTPS. It is live at
+<https://fre0grella.github.io/oche/>; the PWA half of A7 is still outstanding.
+
 ## Track A — the app
 
 ### A1. Foundation — done
@@ -51,8 +56,10 @@ support. Board heatmap, per-double table, trends, per-session view, export.
 Grammar + parser in core, Web Speech adapter with contextual biasing, push-to-talk
 UI, caller echo of every voice score.
 
-### A7. PWA and deploy
-Service worker, offline, installable, GitHub Pages deploy from CI, cross-device
+### A7. PWA and deploy — deploy done
+GitHub Pages deploy from CI on every push to main, tests gating the deploy.
+
+**Outstanding**: service worker, offline, installable, and the cross-device
 layout pass (phone portrait, laptop, and a TV-sized scoreboard).
 
 ## Track B — vision
