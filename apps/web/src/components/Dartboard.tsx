@@ -7,8 +7,17 @@
  * the screen), so a tap converts to a position with no magic numbers.
  */
 
-import { BOARD, SECTORS, scoreAt, sectorAngle, targetPoint, type Hit, type Point } from '@oche/core';
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  BOARD,
+  SECTORS,
+  formatHit,
+  scoreAt,
+  sectorAngle,
+  targetPoint,
+  type Hit,
+  type Point,
+} from '@oche/core';
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 const R = BOARD.boardRadius;
 const HALF_SECTOR = 9;
@@ -102,24 +111,44 @@ export function Dartboard({ onHit, darts = [], target = null, disabled = false }
   );
 
   const svgRef = useRef<SVGSVGElement>(null);
+  /**
+   * Press, look, release. A treble bed is 8 mm wide, which on a phone is about
+   * six pixels and under a fingertip; committing on press-down would make the
+   * board unusable for exactly the shots that matter. So the dart follows the
+   * finger with its score shown, and lands when the finger lifts.
+   */
+  const [preview, setPreview] = useState<{ pos: Point; hit: Hit } | null>(null);
 
-  const handlePointer = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (disabled || !onHit) return;
+  const positionOf = (event: ReactPointerEvent<SVGSVGElement>): Point | null => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg) return null;
 
     const rect = svg.getBoundingClientRect();
     const size = Math.min(rect.width, rect.height);
-    if (size === 0) return;
+    if (size === 0) return null;
 
     // The viewBox is square and centred on the bull, so screen → board is a
     // scale and a y flip.
     const originX = rect.left + (rect.width - size) / 2;
     const originY = rect.top + (rect.height - size) / 2;
-    const x = ((event.clientX - originX) / size) * 2 * R - R;
-    const y = -(((event.clientY - originY) / size) * 2 * R - R);
+    return {
+      x: ((event.clientX - originX) / size) * 2 * R - R,
+      y: -(((event.clientY - originY) / size) * 2 * R - R),
+    };
+  };
 
-    const pos = { x, y };
+  const track = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (disabled || !onHit) return;
+    const pos = positionOf(event);
+    if (!pos) return;
+    setPreview({ pos, hit: scoreAt(pos) });
+  };
+
+  const commit = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (disabled || !onHit) return;
+    const pos = positionOf(event) ?? preview?.pos;
+    setPreview(null);
+    if (!pos) return;
     onHit(scoreAt(pos), pos);
   };
 
@@ -132,7 +161,15 @@ export function Dartboard({ onHit, darts = [], target = null, disabled = false }
       viewBox={`${-R} ${-R} ${2 * R} ${2 * R}`}
       role={onHit ? 'button' : 'img'}
       aria-label="Dartboard"
-      onPointerDown={handlePointer}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        track(event);
+      }}
+      onPointerMove={(event) => {
+        if (preview) track(event);
+      }}
+      onPointerUp={commit}
+      onPointerCancel={() => setPreview(null)}
     >
       <circle cx={0} cy={0} r={R} fill={COLOURS.surround} />
       <g stroke={COLOURS.wire} strokeWidth={0.8}>
@@ -161,6 +198,33 @@ export function Dartboard({ onHit, darts = [], target = null, disabled = false }
           stroke="#ffd166"
           strokeWidth={2.5}
         />
+      )}
+
+      {preview && (
+        <g className="dartboard-preview" pointerEvents="none">
+          <circle cx={preview.pos.x} cy={-preview.pos.y} r={14} fill="none" stroke="#ffffff" strokeWidth={2} />
+          <circle cx={preview.pos.x} cy={-preview.pos.y} r={2.5} fill="#ffffff" />
+          <rect
+            x={preview.pos.x - 46}
+            y={-preview.pos.y - 74}
+            width={92}
+            height={44}
+            rx={10}
+            fill="rgb(1 4 9 / 88%)"
+            stroke="#ffffff"
+            strokeWidth={1.5}
+          />
+          <text
+            x={preview.pos.x}
+            y={-preview.pos.y - 43}
+            fill="#ffffff"
+            fontSize={30}
+            fontWeight={700}
+            textAnchor="middle"
+          >
+            {formatHit(preview.hit)}
+          </text>
+        </g>
       )}
 
       {darts.map((dart, index) =>

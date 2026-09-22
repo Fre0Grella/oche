@@ -28,16 +28,17 @@ export function Game() {
   const current = snapshot.current;
   const finished = snapshot.winnerId !== null;
 
-  // The visit in progress, or the last one thrown when between visits.
-  const visit = current
-    ? [...(leg?.visits ?? [])].reverse().find((v) => v.playerId === current.playerId) ?? null
-    : (leg?.visits.at(-1) ?? null);
+  // The visit in progress. Between visits this is the one just thrown, so the
+  // darts stay on the board until the next player throws — a player walking
+  // back from the board should still see where their darts landed.
+  const visit = leg?.visits.at(-1) ?? null;
+  const visitIsCurrent = current !== null && visit?.playerId === current.playerId && !visit.complete;
 
   const visitDarts: BoardDart[] = (visit?.darts ?? []).map((dart) => ({
     id: dart.id,
     hit: dart.hit,
     ...(dart.pos ? { pos: dart.pos } : {}),
-    past: visit?.complete === true,
+    past: !visitIsCurrent,
   }));
 
   const record = (hit: Hit, pos?: Point) => {
@@ -63,7 +64,7 @@ export function Game() {
             {snapshot.config.players.find((p) => p.id === current.playerId)?.name} {t.game.toThrow}
           </span>
           <span className="throw-darts">
-            {(visit?.darts ?? []).map((dart) => (
+            {(visitIsCurrent ? visit?.darts ?? [] : []).map((dart) => (
               <button
                 key={dart.id}
                 type="button"
@@ -76,7 +77,7 @@ export function Game() {
                 {formatHit(dart.hit)}
               </button>
             ))}
-            {Array.from({ length: Math.max(0, 3 - (visit?.darts.length ?? 0)) }).map((_, index) => (
+            {Array.from({ length: visitIsCurrent ? Math.max(0, 3 - (visit?.darts.length ?? 0)) : 3 }).map((_, index) => (
               <span key={`empty-${index}`} className="dart-chip dart-chip-empty">
                 ·
               </span>
@@ -90,7 +91,7 @@ export function Game() {
           <Dartboard
             onHit={record}
             darts={visitDarts}
-            target={current?.checkout?.[visit?.complete ? 0 : (visit?.darts.length ?? 0)] ?? null}
+            target={current?.checkout?.[visitIsCurrent ? visit?.darts.length ?? 0 : 0] ?? null}
             disabled={finished}
           />
         ) : (
