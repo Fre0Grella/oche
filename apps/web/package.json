@@ -1,0 +1,29 @@
+{
+  "name": "@oche/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@oche/core": "*",
+    "idb": "^8.0.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "jsdom": "^26.1.0",
+    "vite": "^7.1.5"
+  }
+}
