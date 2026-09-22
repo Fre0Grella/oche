@@ -163,10 +163,14 @@ Four mechanisms, in order of how much they buy:
   glare/hotspots on the board.
 - Collection deliberately includes bad conditions — see *Data* below. A model
   trained only on well-lit photographs is a model that works only in shops.
-- A runtime **setup coach**: mean luminance, blur (variance of Laplacian on the
-  board region), board size in pixels, and glare coverage are measured before a
-  session starts and shown as a simple ready/adjust indicator. It is better to
-  say "too dark, move the lamp" than to silently score badly.
+- A runtime **setup coach**, built: it measures where the board sits in the
+  picture (from the calibration homography) and what the picture looks like
+  (brightness, glare, sharpness, and how much has changed since calibration),
+  and says one thing at a time in a colour you can read from the oche — "the
+  board is cut off, turn the camera left", "almost straight on, move to one
+  side", "too dark, put a lamp on the board", "the camera has moved". It is
+  better to say that than to score badly in silence. The numbers behind it are
+  shown too, because their thresholds still have to be set against real boards.
 
 ## The model
 
@@ -231,11 +235,13 @@ A **capture lab** in the app, built and usable during ordinary practice:
    millimetre, and the score appears next to the marker as confirmation.
 4. **Export** a zip of frames plus `labels.json` in the format `ml/` reads.
 
-The same flow runs inside a game. With the camera on, **Report** opens the
-photograph of the last settled throw with a marker on each dart that already has
-a position, and asks where it actually landed. The answer corrects the score and
-files a labelled example — from exactly the setup and lighting that caused the
-mistake.
+The same flow runs inside a game, and that is the path meant for everyday use:
+with the camera on, the end of every visit offers **Mark where they landed**,
+which opens the photograph of that throw with a marker already on each dart, and
+asks the one question worth asking. The answer corrects the score and files a
+labelled example from exactly the setup and lighting that produced it. The
+capture lab is then only for setting the camera up and for throwing without a
+game on.
 
 Once a first model exists, the same screens place the markers themselves, so
 labelling becomes nudging: several times faster again.

@@ -39,11 +39,12 @@ two snapshots, so it is unit tested without a speaker.
 
 **Outstanding**: the recorded clip pack (doc 06), per-player mute, volume.
 
-### A4. Capture lab — done
-Camera preview, four-point calibration with the board wireframe drawn over the
-image so the fit is checkable by eye, automatic capture when the board settles,
-tip labelling by tapping the photograph, local storage, and a zip export in the
-format `ml/` will read.
+### A4. Camera setup and capture — done
+Four-point calibration with the board wireframe drawn over the image so the fit
+is checkable by eye, a setup coach that says which way to move the camera and
+whether the light is good enough, automatic capture when the board changes and
+settles, tip labelling by tapping the photograph, local storage, and a zip
+export in the format `ml/` will read.
 
 Plus the same thing inside a game: with the camera on, every settled throw is
 photographed, and **Report** opens that photograph so anyone can say where the

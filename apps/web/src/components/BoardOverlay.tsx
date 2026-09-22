@@ -191,7 +191,9 @@ export function BoardOverlay({
           />
           <text
             x={dart.img.x}
-            y={dart.img.y - unit * 2.6}
+            /* Staggered, because three darts in a cluster put their labels on
+               top of each other otherwise. */
+            y={dart.img.y - unit * 2.6 - index * unit * 2.4}
             fill="#ffffff"
             fontSize={unit * 2.6}
             fontWeight={700}
