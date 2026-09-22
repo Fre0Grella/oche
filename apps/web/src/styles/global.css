@@ -478,7 +478,20 @@ input {
 }
 
 .game-camera-preview {
-  max-height: 34vh;
+  /* The height is capped through max-width in the component, so the box keeps
+     the camera's exact aspect ratio — see GameCamera. */
+  margin: 0 auto;
+}
+
+/* The camera keeps running; only the picture is out of the way. Hiding it with
+   `display: none` would let some browsers stop feeding the video element. */
+.game-camera-preview-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .stage-video,
@@ -559,4 +572,82 @@ input {
   overflow-y: auto;
   text-align: left;
   align-items: stretch;
+}
+
+/* ---------- setup coach ---------- */
+
+.coach {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.coach-dot {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.coach-ready {
+  border-color: var(--live);
+  background: rgb(46 160 67 / 12%);
+}
+
+.coach-ready .coach-dot {
+  background: var(--live);
+}
+
+.coach-warn {
+  border-color: var(--warn);
+  background: rgb(210 105 30 / 12%);
+}
+
+.coach-warn .coach-dot {
+  background: var(--warn);
+}
+
+.coach-error {
+  border-color: #da3633;
+  background: rgb(218 54 51 / 12%);
+}
+
+.coach-error .coach-dot {
+  background: #da3633;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.coach-message {
+  flex: 1;
+  min-width: 12ch;
+}
+
+.coach-numbers {
+  width: 100%;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.steps li::marker {
+  color: var(--accent);
+  font-weight: 700;
 }

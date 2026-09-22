@@ -30,6 +30,12 @@ export interface Calibration {
   height: number;
   ts: number;
   deviceId?: string;
+  /**
+   * The 64×64 board crop as it looked at calibration time. Comparing against it
+   * is how the app notices the camera has been knocked, which is the difference
+   * between "a dart landed" and "this calibration is now a lie".
+   */
+  reference?: number[];
 }
 
 export interface LabelledDart {

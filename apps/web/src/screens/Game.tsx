@@ -140,6 +140,7 @@ export function Game() {
             hit: dart.hit,
             ...(dart.pos ? { pos: dart.pos } : {}),
           }))}
+          visitComplete={visit?.complete === true}
           onCorrect={(dartId, hit, pos) => correctDart(dartId, hit, pos)}
         />
       )}

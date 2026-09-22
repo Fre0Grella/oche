@@ -7,10 +7,17 @@
  * and labelling is three taps on a picture.
  */
 
-import { CALIBRATION_BOARD_POINTS, boardRegion, formatHit, type Point } from '@oche/core';
+import {
+  CALIBRATION_BOARD_POINTS,
+  assessBoardView,
+  boardRegion,
+  formatHit,
+  type Point,
+} from '@oche/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoardOverlay, type OverlayHandle } from '../components/BoardOverlay.js';
+import { SetupCoach } from '../components/SetupCoach.js';
 import { fill, useStrings } from '../i18n/index.js';
 import {
   calibrate,
@@ -139,11 +146,17 @@ export function Capture() {
     [calibration],
   );
 
+  const reference = useMemo(
+    () => (calibration?.reference ? Uint8Array.from(calibration.reference) : null),
+    [calibration],
+  );
+
   const camera = useCamera({
     active: cameraOn,
     onSettle,
     captureOnSettle: autoCapture && mode === 'live' && calibration !== null,
     region,
+    reference,
   });
 
   // Whatever is on screen owns the coordinate space: the frozen grab during
@@ -169,6 +182,25 @@ export function Capture() {
       ? calibrate(draft, CALIBRATION_BOARD_POINTS, frameSize)
       : null;
 
+  // Recomputing the assessment on every drag frame would be wasteful, so the
+  // draft is read through a ref and the coach is nudged a few times a second.
+  const [draftTick, setDraftTick] = useState(0);
+  const draftCalibrationRef = useRef(draftCalibration);
+  draftCalibrationRef.current = draftCalibration;
+
+  useEffect(() => {
+    if (mode !== 'calibrate') return;
+    const timer = setInterval(() => setDraftTick((tick) => tick + 1), 300);
+    return () => clearInterval(timer);
+  }, [mode]);
+
+  // What the coach reports on: where the board is in the picture right now.
+  const view = useMemo(() => {
+    const source = mode === 'calibrate' ? draftCalibrationRef.current : calibration;
+    if (!source) return null;
+    return assessBoardView(source.toImage, { width: source.width, height: source.height });
+  }, [calibration, mode, draftTick]);
+
   const startCalibration = async () => {
     const grabbed = await camera.capture();
     if (!grabbed) return;
@@ -180,7 +212,18 @@ export function Capture() {
 
   const finishCalibration = (save: boolean) => {
     if (save && draftCalibration) {
-      saveCalibration({ ...draftCalibration, ts: Date.now() });
+      // Keep the board as it looks now: comparing against it is how the app
+      // later notices the camera has been knocked.
+      const boardRect = boardRegion(draftCalibration.toImage, {
+        width: draftCalibration.width,
+        height: draftCalibration.height,
+      });
+      const thumb = camera.sampleThumbnail(boardRect);
+      saveCalibration({
+        ...draftCalibration,
+        ts: Date.now(),
+        ...(thumb ? { reference: Array.from(thumb) } : {}),
+      });
     }
     if (frozen) URL.revokeObjectURL(frozen.url);
     setFrozen(null);
@@ -290,6 +333,15 @@ export function Capture() {
             now: `${camera.width}×${camera.height}`,
           })}
         </p>
+      )}
+
+      {cameraOn && (mode === 'live' || mode === 'calibrate') && (
+        <SetupCoach
+          calibrated={mode === 'calibrate' ? draftCalibration !== null : calibration !== null}
+          view={view}
+          quality={camera.quality}
+          showNumbers
+        />
       )}
 
       <div className="stage" style={{ aspectRatio: `${frameSize.width} / ${frameSize.height}` }}>
@@ -416,11 +468,23 @@ export function Capture() {
         </div>
       )}
 
-      {mode === 'live' && !calibration && cameraOn && <p className="hint">{t.capture.noCalibration}</p>}
+      {mode === 'live' && (
+        <section className="panel">
+          <h2>{t.capture.stepsTitle}</h2>
+          <ol className="steps">
+            {t.capture.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {mode === 'live' && cameraOn && calibration && autoCapture && (
         <p className="hint">{t.capture.autoNote}</p>
       )}
       {mode === 'live' && queue.length >= BACKLOG_LIMIT && <p className="warning">{t.capture.backlog}</p>}
+
+      {mode === 'live' && calibration && <p className="hint">{t.capture.practiceHelp}</p>}
 
       {mode === 'live' && queue.length > 0 && (
         <button type="button" className="primary" onClick={() => openLabeller(queue[0]!)}>

@@ -18,6 +18,7 @@ import {
   type GrabbedFrame,
   type Region,
 } from './camera.js';
+import { assessImage, type ImageQuality } from './imageStats.js';
 import { SettleDetector } from './settle.js';
 
 export interface UseCameraOptions {
@@ -32,6 +33,11 @@ export interface UseCameraOptions {
    * it — see `settle.ts` for why a whole-frame view cannot see a dart.
    */
   region?: Region | null;
+  /**
+   * The board as it looked when it was calibrated. Used to notice that the
+   * camera has been moved since, which invalidates the calibration.
+   */
+  reference?: Uint8Array | null;
 }
 
 export interface CameraState {
@@ -46,7 +52,11 @@ export interface CameraState {
   /** The two numbers the capture trigger works on, for tuning on a real board. */
   motion: number;
   change: number;
+  /** Light, glare, sharpness and drift, for the setup coach. */
+  quality: ImageQuality | null;
   capture: () => Promise<GrabbedFrame | null>;
+  /** The current board-region thumbnail, for storing as a calibration reference. */
+  sampleThumbnail: (region?: Region | null) => Uint8Array | null;
 }
 
 export function useCamera({
@@ -55,6 +65,7 @@ export function useCamera({
   onSettle,
   captureOnSettle = true,
   region = null,
+  reference = null,
 }: UseCameraOptions): CameraState {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -63,6 +74,8 @@ export function useCamera({
   const capturing = useRef(false);
   const regionRef = useRef(region);
   regionRef.current = region;
+  const referenceRef = useRef(reference);
+  referenceRef.current = reference;
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +83,7 @@ export function useCamera({
   const [moving, setMoving] = useState(false);
   const [settles, setSettles] = useState(0);
   const [readout, setReadout] = useState({ motion: 0, change: 0 });
+  const [quality, setQuality] = useState<ImageQuality | null>(null);
 
   settleHandler.current = onSettle;
 
@@ -77,6 +91,12 @@ export function useCamera({
     const video = videoRef.current;
     if (!video) return null;
     return grabJpeg(video);
+  }, []);
+
+  const sampleThumbnail = useCallback((sampleRegion?: Region | null) => {
+    const video = videoRef.current;
+    if (!video) return null;
+    return thumbnail(video, sampleRegion === undefined ? regionRef.current : sampleRegion);
   }, []);
 
   useEffect(() => {
@@ -131,6 +151,7 @@ export function useCamera({
           if (now - lastReadoutAt > 250) {
             lastReadoutAt = now;
             setReadout({ motion: detector.current.motion, change: detector.current.change });
+            setQuality(assessImage(thumb, THUMB_SIZE, THUMB_SIZE, referenceRef.current));
           }
 
           if (state === 'settled' && captureOnSettle && !capturing.current) {
@@ -183,6 +204,8 @@ export function useCamera({
     settles,
     motion: readout.motion,
     change: readout.change,
+    quality,
     capture,
+    sampleThumbnail,
   };
 }

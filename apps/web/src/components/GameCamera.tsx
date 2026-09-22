@@ -11,7 +11,7 @@
  * `docs/03` is built around.
  */
 
-import { boardRegion, formatHit, type Hit, type Point } from '@oche/core';
+import { assessBoardView, boardRegion, formatHit, type Hit, type Point } from '@oche/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fill, useStrings } from '../i18n/index.js';
@@ -26,6 +26,7 @@ import { useMatchStore } from '../store/match.js';
 import { cameraSupported, type GrabbedFrame } from '../vision/camera.js';
 import { useCamera } from '../vision/useCamera.js';
 import { BoardOverlay } from './BoardOverlay.js';
+import { SetupCoach } from './SetupCoach.js';
 
 export interface ReportableDart {
   id: string;
@@ -37,6 +38,8 @@ export interface GameCameraProps {
   matchId: string;
   /** The darts of the visit on the board right now. */
   darts: ReportableDart[];
+  /** True once the visit is thrown: the moment to mark where they landed. */
+  visitComplete: boolean;
   onCorrect: (dartId: string, hit: Hit, pos: Point) => void;
 }
 
@@ -46,7 +49,7 @@ function newId(): string {
     : `frame-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 }
 
-export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
+export function GameCamera({ matchId, darts, visitComplete, onCorrect }: GameCameraProps) {
   const t = useStrings();
   const keepFrames = useMatchStore((s) => s.settings.keepFrames);
   const setKeepFrames = useMatchStore((s) => s.setKeepFrames);
@@ -58,6 +61,10 @@ export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const [marks, setMarks] = useState<(LabelledDart | null)[]>([]);
   const [saved, setSaved] = useState<string | null>(null);
+  // During a game the preview is clutter: the coach line says whether the
+  // camera is happy, and that is all anyone needs mid-leg. It is one tap away
+  // when something looks wrong.
+  const [showPreview, setShowPreview] = useState(false);
   const latestRef = useRef<GrabbedFrame | null>(null);
 
   const onSettle = useCallback((frame: GrabbedFrame) => {
@@ -74,7 +81,26 @@ export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
     [calibration],
   );
 
-  const camera = useCamera({ active: keepFrames, onSettle, captureOnSettle: true, region });
+  const reference = useMemo(
+    () => (calibration?.reference ? Uint8Array.from(calibration.reference) : null),
+    [calibration],
+  );
+
+  const camera = useCamera({
+    active: keepFrames,
+    onSettle,
+    captureOnSettle: true,
+    region,
+    reference,
+  });
+
+  const view = useMemo(
+    () =>
+      calibration
+        ? assessBoardView(calibration.toImage, { width: calibration.width, height: calibration.height })
+        : null,
+    [calibration],
+  );
 
   const usable =
     calibration !== null &&
@@ -175,8 +201,13 @@ export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
           {keepFrames ? t.report.cameraOn : t.report.cameraOff}
         </button>
         {keepFrames && (
-          <button type="button" className="chip" onClick={openReport} disabled={!usable || darts.length === 0}>
-            {t.report.button}
+          <button
+            type="button"
+            className={visitComplete && usable && darts.length > 0 ? 'primary' : 'chip'}
+            onClick={openReport}
+            disabled={!usable || darts.length === 0}
+          >
+            {visitComplete ? t.report.markVisit : t.report.button}
           </button>
         )}
         {keepFrames && !calibration && (
@@ -184,12 +215,34 @@ export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
             {t.capture.calibrate}
           </button>
         )}
+        {keepFrames && calibration && (
+          <button
+            type="button"
+            className={`chip${showPreview ? ' chip-on' : ''}`}
+            onClick={() => setShowPreview((on) => !on)}
+          >
+            {t.report.preview}
+          </button>
+        )}
       </div>
 
       {saved && <p className="hint">{saved}</p>}
 
+      {keepFrames && camera.ready && (
+        <SetupCoach calibrated={calibration !== null} view={view} quality={camera.quality} />
+      )}
+
       {keepFrames && (
-        <div className="game-camera-preview" style={{ aspectRatio: `${size.width} / ${size.height}` }}>
+        <div
+          className={`game-camera-preview${showPreview ? '' : ' game-camera-preview-hidden'}`}
+          style={{
+            aspectRatio: `${size.width} / ${size.height}`,
+            // Cap the height by capping the width instead: clamping the height
+            // of an aspect-ratio box squashes the picture, which is what this
+            // preview used to do.
+            maxWidth: `calc(30vh * ${(size.width / size.height).toFixed(4)})`,
+          }}
+        >
           <video ref={camera.videoRef} className="stage-video" playsInline muted />
           <BoardOverlay
             width={size.width}
