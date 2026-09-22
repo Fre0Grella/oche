@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+import { Capture } from './screens/Capture.js';
 import { Game } from './screens/Game.js';
 import { History } from './screens/History.js';
 import { Setup } from './screens/Setup.js';
@@ -24,5 +25,6 @@ export function App() {
 
   if (screen === 'game') return <Game />;
   if (screen === 'history') return <History />;
+  if (screen === 'capture') return <Capture />;
   return <Setup />;
 }

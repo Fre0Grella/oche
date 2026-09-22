@@ -114,6 +114,12 @@ button:disabled {
   color: var(--accent-ink);
   border-color: transparent;
   font-weight: 700;
+}
+
+/* Only stretch inside a row of buttons: a lone primary in a column layout
+   would otherwise grow to fill the whole screen. */
+.controls .primary,
+.screen-actions .primary {
   flex: 1;
 }
 
@@ -457,4 +463,100 @@ input {
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   text-align: center;
+}
+
+/* ---------- camera, calibration and labelling ---------- */
+
+.stage,
+.game-camera-preview {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.game-camera-preview {
+  max-height: 34vh;
+}
+
+.stage-video,
+.stage-frozen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* The wrapper carries the frame's aspect ratio, so `fill` neither crops nor
+     distorts — and it keeps screen pixels and image pixels in step, which is
+     what makes a tap on the overlay mean a point in the photograph. */
+  object-fit: fill;
+  display: block;
+}
+
+.board-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+}
+
+.board-overlay-dim {
+  opacity: 0.55;
+}
+
+.stage-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(1 4 9 / 72%);
+  border: 1px solid var(--line);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.warning {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--warn);
+  background: rgb(210 105 30 / 12%);
+  border: 1px solid var(--warn);
+  font-size: 0.85rem;
+}
+
+.landmark-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.landmark-list b {
+  display: inline-block;
+  min-width: 2.2em;
+  color: var(--accent);
+}
+
+.game-camera {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.overlay-card-wide {
+  width: min(100%, 560px);
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: left;
+  align-items: stretch;
 }

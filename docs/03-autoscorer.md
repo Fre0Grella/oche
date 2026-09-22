@@ -58,13 +58,14 @@ Practical consequences of choosing ONNX Runtime Web:
 ```
  video frame
      │
- ┌───▼──────────────┐   downscale to 160×90 grey, mean abs diff
- │ 1. motion gate   │   idle → motion → settled (N still frames ≈ 300 ms)
- └───┬──────────────┘   cost: microseconds, runs every frame
+ ┌───▼──────────────┐   downscale to 48×27 grey, mean abs difference
+ │ 1. motion gate   │   idle → moving → settled (still for ≈300 ms)   BUILT
+ └───┬──────────────┘   cost: microseconds; runs every frame
      │ settled
  ┌───▼──────────────┐   board keypoint model, once per setup + on drift
  │ 2. board pose    │   keypoints → homography H (board mm ↔ image px)
- └───┬──────────────┘   cached; re-checked when the static scene changes
+ └───┬──────────────┘   today: the four points are placed by hand in the
+     │                  capture lab, and the maths below it is built and tested
      │
  ┌───▼──────────────┐   warp the frame to a canonical top-down 512×512 board
  │ 3. rectify       │   (GPU, one draw call)
@@ -178,19 +179,33 @@ in the middle of the bed, and the UI asks.
 
 ### Collecting it without it being a chore
 
-A **capture lab** in the app, usable during ordinary practice:
+A **capture lab** in the app, built and usable during ordinary practice:
 
-1. Click the four board corners once per camera setup → homography known.
-2. Play normally. After each visit the app shows the captured frame,
-   already rectified, with the board overlay on top.
-3. Tap each dart tip on the rectified image. Tapping the rectified view is fast
-   and precise, and the label is transformed back into raw image coordinates
-   automatically.
-4. Frames + labels are stored locally, exportable as a zip that the training
-   scripts ingest directly.
+1. **Calibrate once per camera position.** Drag four markers onto the outer edge
+   of the double ring on the centre lines of the 20, 6, 3 and 11. Those four
+   landmarks were chosen because a person can find them without a diagram and
+   hit them within a millimetre or two — "the upper-left corner of the 20
+   segment" is a guess on a phone screen. The app then draws the whole board
+   through the resulting homography, over the photograph: if the drawn wires sit
+   on the real ones the calibration is right, and if they drift you can see
+   exactly where. It also reports the fit in pixels.
+2. **Play normally.** The motion gate watches the frame and photographs the
+   board each time it settles, so a practice session produces frames without
+   anyone pressing anything. Automatic capture pauses when 40 unlabelled frames
+   are waiting, because photographs are cheap to take and slow to mark up.
+3. **Tap each dart tip** on the photograph. The tap is read through the
+   homography, so the label carries both the image pixel and the board
+   millimetre, and the score appears next to the marker as confirmation.
+4. **Export** a zip of frames plus `labels.json` in the format `ml/` reads.
 
-Once a first model exists, the same screen shows the model's guesses as draggable
-markers, so labelling becomes correcting — several times faster.
+The same flow runs inside a game. With the camera on, **Report** opens the
+photograph of the last settled throw with a marker on each dart that already has
+a position, and asks where it actually landed. The answer corrects the score and
+files a labelled example — from exactly the setup and lighting that caused the
+mistake.
+
+Once a first model exists, the same screens place the markers themselves, so
+labelling becomes nudging: several times faster again.
 
 ## Evaluation and the gate
 

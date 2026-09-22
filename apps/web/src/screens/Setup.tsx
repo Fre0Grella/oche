@@ -156,6 +156,9 @@ export function Setup() {
             {t.setup.history}
           </button>
         )}
+        <button type="button" className="chip" onClick={() => setScreen('capture')}>
+          {t.capture.title}
+        </button>
       </div>
     </div>
   );

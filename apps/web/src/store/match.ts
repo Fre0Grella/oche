@@ -31,7 +31,7 @@ import {
   type StoredMatch,
 } from '../storage/db.js';
 
-export type Screen = 'setup' | 'game' | 'history';
+export type Screen = 'setup' | 'game' | 'history' | 'capture';
 
 export interface ThrowOptions {
   pos?: Point;
@@ -61,6 +61,8 @@ interface MatchState {
 
   toggleCaller: () => void;
   setEntryMode: (mode: Settings['entryMode']) => void;
+  saveCalibration: (calibration: Settings['calibration']) => void;
+  setKeepFrames: (on: boolean) => void;
 }
 
 function newId(): string {
@@ -201,6 +203,16 @@ export const useMatchStore = create<MatchState>((set, get) => {
     setEntryMode(entryMode) {
       set({ settings: { ...get().settings, entryMode } });
       void saveSetting('entryMode', entryMode);
+    },
+
+    saveCalibration(calibration) {
+      set({ settings: { ...get().settings, calibration } });
+      void saveSetting('calibration', calibration);
+    },
+
+    setKeepFrames(keepFrames) {
+      set({ settings: { ...get().settings, keepFrames } });
+      void saveSetting('keepFrames', keepFrames);
     },
   };
 });
