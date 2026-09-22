@@ -104,7 +104,8 @@ Each label entry holds:
   darts[]             per dart: img {x,y} in pixels, board {x,y} in millimetres
                       from the centre of the bull (+x right, +y up), and the hit
                       it scores
-  reported            what the app believed when the frame was reported as wrong
+  reported            what the app believed when the frame was reported as wrong,
+                      with the dart event ids it refers to
 
 Board millimetres follow the standard steel-tip board: the outer edge of the
 double ring is at 170 mm, the treble ring at 107 mm, the outer bull at 15.9 mm.
@@ -125,7 +126,7 @@ interface ExportedFrame {
     error: number;
   };
   darts: { img: Point; board: Point; hit: Hit }[];
-  reported?: { hits: string[]; source: string };
+  reported?: { hits: string[]; dartIds: string[]; source: string };
   note?: string;
 }
 

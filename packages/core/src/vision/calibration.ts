@@ -11,6 +11,7 @@
  */
 
 import { BOARD, type Point } from '../board/geometry.js';
+import { applyHomography, type Matrix3 } from './homography.js';
 
 export interface CalibrationLandmark {
   id: 'top' | 'right' | 'bottom' | 'left';
@@ -70,4 +71,43 @@ export function boardWireframe(): Point[][] {
   }
 
   return lines;
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Where the board sits in the image, as a rectangle, with a margin in board
+ * millimetres around it.
+ *
+ * The motion gate uses this to look only at the board: a dart is a rounding
+ * error in a whole-frame average and obvious in a crop of the board alone.
+ */
+export function boardRegion(
+  toImage: Matrix3,
+  frame: { width: number; height: number },
+  marginMm = 25,
+): Rect | null {
+  const radius = BOARD.doubleOuterRadius + marginMm;
+  const corners: Point[] = [];
+  for (let angle = 0; angle < 360; angle += 15) {
+    const rad = (angle * Math.PI) / 180;
+    corners.push(applyHomography(toImage, { x: radius * Math.cos(rad), y: radius * Math.sin(rad) }));
+  }
+  if (corners.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return null;
+
+  const left = Math.max(0, Math.min(...corners.map((p) => p.x)));
+  const right = Math.min(frame.width, Math.max(...corners.map((p) => p.x)));
+  const top = Math.max(0, Math.min(...corners.map((p) => p.y)));
+  const bottom = Math.min(frame.height, Math.max(...corners.map((p) => p.y)));
+
+  const width = right - left;
+  const height = bottom - top;
+  if (width < 16 || height < 16) return null;
+
+  return { x: left, y: top, width, height };
 }

@@ -56,13 +56,32 @@ export async function keepAwake(): Promise<WakeLockSentinel | null> {
 
 let thumbCanvas: HTMLCanvasElement | null = null;
 
+export interface Region {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The thumbnail the capture trigger works on: square, greyscale, 64×64. */
+export const THUMB_SIZE = 64;
+
 /**
- * A small greyscale thumbnail of the current frame, for the motion gate. 48×27
- * is about 1300 samples: enough to see an arm cross the frame, cheap enough to
- * run on every frame of video without warming the phone.
+ * A small greyscale thumbnail of the current frame, for the capture trigger.
+ *
+ * `region` crops to the board before scaling, which is the whole point: a dart
+ * covers a few per cent of the board and a fraction of a per cent of a wide
+ * frame, so a thumbnail of everything cannot see one.
  */
-export function thumbnail(video: HTMLVideoElement, width = 48, height = 27): Uint8Array | null {
+export function thumbnail(
+  video: HTMLVideoElement,
+  region?: Region | null,
+  size = THUMB_SIZE,
+): Uint8Array | null {
   if (video.readyState < 2 || video.videoWidth === 0) return null;
+
+  const width = size;
+  const height = size;
 
   if (!thumbCanvas) thumbCanvas = document.createElement('canvas');
   thumbCanvas.width = width;
@@ -71,7 +90,11 @@ export function thumbnail(video: HTMLVideoElement, width = 48, height = 27): Uin
   const context = thumbCanvas.getContext('2d', { willReadFrequently: true });
   if (!context) return null;
 
-  context.drawImage(video, 0, 0, width, height);
+  if (region && region.width > 8 && region.height > 8) {
+    context.drawImage(video, region.x, region.y, region.width, region.height, 0, 0, width, height);
+  } else {
+    context.drawImage(video, 0, 0, width, height);
+  }
   const { data } = context.getImageData(0, 0, width, height);
 
   const grey = new Uint8Array(width * height);

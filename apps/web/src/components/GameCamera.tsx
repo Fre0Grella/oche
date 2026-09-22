@@ -11,8 +11,8 @@
  * `docs/03` is built around.
  */
 
-import { formatHit, type Hit, type Point } from '@oche/core';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { boardRegion, formatHit, type Hit, type Point } from '@oche/core';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fill, useStrings } from '../i18n/index.js';
 import {
@@ -65,7 +65,16 @@ export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
     setLatest(frame);
   }, []);
 
-  const camera = useCamera({ active: keepFrames, onSettle, captureOnSettle: true });
+  // The capture trigger looks only at the board — see vision/settle.ts.
+  const region = useMemo(
+    () =>
+      calibration && calibration.width > 0
+        ? boardRegion(calibration.toImage, { width: calibration.width, height: calibration.height })
+        : null,
+    [calibration],
+  );
+
+  const camera = useCamera({ active: keepFrames, onSettle, captureOnSettle: true, region });
 
   const usable =
     calibration !== null &&
@@ -120,6 +129,7 @@ export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
       labelled: labelled.length > 0,
       reported: {
         hits: darts.map((dart) => formatHit(dart.hit)),
+        dartIds: darts.map((dart) => dart.id),
         source: 'manual',
       },
     };
@@ -138,12 +148,9 @@ export function GameCamera({ matchId, darts, onCorrect }: GameCameraProps) {
     setSaved(
       corrections > 0
         ? fill(t.report.scoreChanged, {
-            score: marks
-              .filter((mark): mark is LabelledDart => mark !== null)
-              .map((mark) => formatHit(mark.hit))
-              .join(' '),
+            score: labelled.map((mark) => formatHit(mark.hit)).join(' '),
           })
-        : t.report.save,
+        : t.report.saved,
     );
     setTimeout(() => setSaved(null), 4000);
     closeReport();

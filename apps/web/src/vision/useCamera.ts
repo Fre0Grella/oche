@@ -8,7 +8,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { grabJpeg, keepAwake, startCamera, stopCamera, thumbnail, type GrabbedFrame } from './camera.js';
+import {
+  grabJpeg,
+  keepAwake,
+  startCamera,
+  stopCamera,
+  thumbnail,
+  THUMB_SIZE,
+  type GrabbedFrame,
+  type Region,
+} from './camera.js';
 import { SettleDetector } from './settle.js';
 
 export interface UseCameraOptions {
@@ -18,6 +27,11 @@ export interface UseCameraOptions {
   onSettle?: (frame: GrabbedFrame) => void;
   /** Set false to watch for motion without photographing anything. */
   captureOnSettle?: boolean;
+  /**
+   * The board's rectangle in the image. The capture trigger looks only inside
+   * it — see `settle.ts` for why a whole-frame view cannot see a dart.
+   */
+  region?: Region | null;
 }
 
 export interface CameraState {
@@ -29,6 +43,9 @@ export interface CameraState {
   moving: boolean;
   /** Frames captured since the camera started, for the UI's counter. */
   settles: number;
+  /** The two numbers the capture trigger works on, for tuning on a real board. */
+  motion: number;
+  change: number;
   capture: () => Promise<GrabbedFrame | null>;
 }
 
@@ -37,18 +54,22 @@ export function useCamera({
   deviceId,
   onSettle,
   captureOnSettle = true,
+  region = null,
 }: UseCameraOptions): CameraState {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const detector = useRef(new SettleDetector());
+  const detector = useRef(new SettleDetector({ width: THUMB_SIZE, height: THUMB_SIZE }));
   const settleHandler = useRef(onSettle);
   const capturing = useRef(false);
+  const regionRef = useRef(region);
+  regionRef.current = region;
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [moving, setMoving] = useState(false);
   const [settles, setSettles] = useState(0);
+  const [readout, setReadout] = useState({ motion: 0, change: 0 });
 
   settleHandler.current = onSettle;
 
@@ -63,6 +84,7 @@ export function useCamera({
 
     let cancelled = false;
     let frame = 0;
+    let lastReadoutAt = 0;
     let wakeLock: WakeLockSentinel | null = null;
 
     const run = async () => {
@@ -97,11 +119,19 @@ export function useCamera({
             setSize({ width: element.videoWidth, height: element.videoHeight });
           }
 
-          const thumb = thumbnail(element);
+          const thumb = thumbnail(element, regionRef.current);
           if (!thumb) return;
 
-          const state = detector.current.push(thumb, performance.now());
+          const now = performance.now();
+          const state = detector.current.push(thumb, now);
           setMoving(state === 'moving');
+
+          // Re-rendering on every frame to show two numbers would cost more
+          // than the detector does, so the readout updates a few times a second.
+          if (now - lastReadoutAt > 250) {
+            lastReadoutAt = now;
+            setReadout({ motion: detector.current.motion, change: detector.current.change });
+          }
 
           if (state === 'settled' && captureOnSettle && !capturing.current) {
             capturing.current = true;
@@ -143,5 +173,16 @@ export function useCamera({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, deviceId, captureOnSettle]);
 
-  return { videoRef, ready, error, width: size.width, height: size.height, moving, settles, capture };
+  return {
+    videoRef,
+    ready,
+    error,
+    width: size.width,
+    height: size.height,
+    moving,
+    settles,
+    motion: readout.motion,
+    change: readout.change,
+    capture,
+  };
 }

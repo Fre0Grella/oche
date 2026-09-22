@@ -169,6 +169,9 @@ export const en = {
     deleteAllConfirm: 'Tap again to delete everything',
     storage: '{mb} MB on this device',
     privacy: 'Frames stay on this device. Nothing is uploaded.',
+    readout: 'motion/change',
+    autoNote:
+      'Automatic capture is triggered by the board changing while nothing is moving. The two numbers in the corner are what it measures — motion, then the strongest change since the last photograph. The thresholds have not been set against a real board yet, so if nothing fires, use Capture now and tell me what those numbers read.',
     backlog: 'Paused: there are frames waiting to be labelled. Label or clear them to carry on capturing.',
     back: 'Back',
   },
@@ -178,6 +181,7 @@ export const en = {
     help: 'Drag each marker onto the real tip. The score follows the marker, and the frame is kept for training.',
     noFrame: 'No camera frame for this visit — turn the camera on to report a miss-read.',
     save: 'Save report',
+    saved: 'Saved for training — the score was already right.',
     cancel: 'Cancel',
     camera: 'Camera',
     cameraOn: 'Camera on',

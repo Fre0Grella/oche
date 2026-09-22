@@ -51,8 +51,11 @@ dart actually landed. That corrects the score *and* files a labelled example —
 which is exactly the flywheel the autoscorer needs, working before the
 autoscorer exists.
 
-**Outstanding**: model-assisted pre-labelling (markers placed by a first model,
-so labelling becomes nudging), and a review screen for frames already labelled.
+**Outstanding**: the automatic trigger's thresholds have not been set against a
+real board — the app shows the two numbers it measures so the first session can
+set them, and "Capture now" works regardless. Also model-assisted pre-labelling
+(markers placed by a first model, so labelling becomes nudging) and a review
+screen for frames already labelled.
 
 > From here, data collection runs in parallel with everything below.
 

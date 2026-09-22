@@ -58,9 +58,9 @@ Practical consequences of choosing ONNX Runtime Web:
 ```
  video frame
      │
- ┌───▼──────────────┐   downscale to 48×27 grey, mean abs difference
- │ 1. motion gate   │   idle → moving → settled (still for ≈300 ms)   BUILT
- └───┬──────────────┘   cost: microseconds; runs every frame
+ ┌───▼──────────────┐   64×64 grey crop of the board: still, and changed
+ │ 1. capture       │   since the last photograph → take a frame
+ └───┬──────────────┘   built; thresholds not yet set against a real board
      │ settled
  ┌───▼──────────────┐   board keypoint model, once per setup + on drift
  │ 2. board pose    │   keypoints → homography H (board mm ↔ image px)
@@ -87,6 +87,39 @@ Practical consequences of choosing ONNX Runtime Web:
  │ 7. propose       │   low confidence or count mismatch → ask, don't guess
  └──────────────────┘
 ```
+
+### Why the trigger is not a motion detector
+
+The obvious design is "wait for movement, then for stillness". On a real board
+it never fires, and the reason is worth keeping written down.
+
+The camera is a metre from the board; the player throws from 2.37 m *behind*
+it. Their arm never enters the frame. The dart is visible for two or three
+motion-blurred frames and then covers a few per cent of the board. Averaged over
+a whole video frame, a dart landing in the treble 20 moves the mean by less than
+half a grey level — indistinguishable from sensor noise. A gate waiting for
+"movement" waits forever. (The trap is easy to fall into in testing: a webcam
+test pattern animates the whole frame, so a whole-frame metric looks like it
+works right up until it meets a dartboard.)
+
+So the trigger works on two numbers instead, both computed on a 64×64 greyscale
+crop of **the board region only**, which the calibration homography gives us:
+
+- **motion** — mean absolute difference from the previous frame. "Is something
+  happening right now?" A hand reaching in, a dart in flight, a knocked camera.
+- **change** — the largest per-block mean difference from a *reference* frame:
+  the board as it was when it was last photographed. "Is there something on the
+  board that was not there before?" A dart is small but locally dense, so an
+  8×8 block sees it at ~30 grey levels where the whole-frame average sees 0.4.
+  The blocks overlap by half, so a dart straddling a boundary is not lost.
+
+A frame is taken when the scene is still *and* the board has changed. Pulling
+the darts out is a change too, which re-arms the reference for the next visit.
+
+The thresholds shipped today are reasoned starting points, not measurements. The
+capture lab shows both numbers live, so the first session on a real board sets
+them — and until it has, "Capture now" is the path that is known to work, which
+the app says rather than implies.
 
 ### Why rectify before detecting
 

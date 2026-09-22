@@ -2,115 +2,164 @@ import { describe, expect, it } from 'vitest';
 
 import { SettleDetector, type SettleState } from './settle.js';
 
-const SIZE = 64;
+const W = 64;
+const H = 64;
 
-const flat = (value: number) => new Uint8Array(SIZE).fill(value);
+const board = (level = 120) => new Uint8Array(W * H).fill(level);
 
-/** A frame that differs from `value` by `delta` on average. */
-const noisy = (value: number, delta: number) =>
-  new Uint8Array(SIZE).map((_, index) => (index % 2 === 0 ? value + delta * 2 : value));
+/** A dart: a small dark patch, about the size of one in a board-region thumbnail. */
+function withDart(base: Uint8Array, cx: number, cy: number, size = 5, level = 40): Uint8Array {
+  const next = base.slice();
+  for (let y = cy; y < cy + size; y += 1) {
+    for (let x = cx; x < cx + size; x += 1) {
+      next[y * W + x] = level;
+    }
+  }
+  return next;
+}
 
-function feed(detector: SettleDetector, frames: { frame: Uint8Array; at: number }[]): SettleState[] {
-  return frames.map(({ frame, at }) => detector.push(frame, at));
+/** A hand crossing the frame: most of the thumbnail changes at once. */
+function withHand(base: Uint8Array): Uint8Array {
+  return base.map((value, index) => (index % 3 === 0 ? 20 : value));
+}
+
+const mean = (a: Uint8Array, b: Uint8Array) =>
+  a.reduce((sum, value, index) => sum + Math.abs(value - b[index]!), 0) / a.length;
+
+/** Feeds still frames for `ms`, returning every state seen. */
+function hold(detector: SettleDetector, frame: Uint8Array, from: number, ms: number): [SettleState[], number] {
+  const states: SettleState[] = [];
+  let at = from;
+  for (let elapsed = 0; elapsed < ms; elapsed += 33) {
+    at += 33;
+    states.push(detector.push(frame, at));
+  }
+  return [states, at];
 }
 
 describe('SettleDetector', () => {
-  it('says nothing about the very first frame', () => {
+  it('sees a dart that a whole-frame average cannot', () => {
+    // This is the number that makes the block metric necessary: one dart moves
+    // the mean over the whole thumbnail by less than half a grey level, which
+    // no sane motion threshold could distinguish from sensor noise.
+    const empty = board();
+    const landed = withDart(empty, 30, 30);
+    expect(mean(landed, empty)).toBeLessThan(0.5);
+
     const detector = new SettleDetector();
-    expect(detector.push(flat(100), 0)).toBe('idle');
+    detector.push(empty, 0);
+    detector.push(landed, 33);
+    expect(detector.change).toBeGreaterThan(20);
   });
 
-  it('ignores a scene that never moves', () => {
+  it('says nothing about the first frame, or about a board nobody touches', () => {
     const detector = new SettleDetector();
-    const states = feed(
-      detector,
-      Array.from({ length: 30 }, (_, i) => ({ frame: flat(100), at: i * 33 })),
-    );
+    const empty = board();
+    expect(detector.push(empty, 0)).toBe('idle');
+    const [states] = hold(detector, empty, 0, 2000);
     expect(states.every((state) => state === 'idle')).toBe(true);
   });
 
-  it('settles once, a beat after the movement stops', () => {
+  it('fires once when a dart lands, and again for the next dart', () => {
     const detector = new SettleDetector();
+    const empty = board();
     let at = 0;
-    const states: SettleState[] = [];
 
-    states.push(detector.push(flat(100), at));
-    // An arm and a dart cross the frame.
-    for (let i = 0; i < 5; i += 1) {
-      at += 33;
-      states.push(detector.push(noisy(100, 20 + i), at));
-    }
-    // Then the board is still.
-    for (let i = 0; i < 20; i += 1) {
-      at += 33;
-      states.push(detector.push(flat(140), at));
-    }
+    detector.push(empty, at);
+    [, at] = hold(detector, empty, at, 500);
 
+    const one = withDart(empty, 30, 30);
+    const [first, afterFirst] = hold(detector, one, at, 1500);
+    expect(first.filter((state) => state === 'settled')).toHaveLength(1);
+
+    const two = withDart(one, 20, 40);
+    const [second] = hold(detector, two, afterFirst, 1500);
+    expect(second.filter((state) => state === 'settled')).toHaveLength(1);
+  });
+
+  it('waits while a hand is in the way, then takes the frame', () => {
+    const detector = new SettleDetector();
+    const empty = board();
+    let at = 0;
+    detector.push(empty, at);
+
+    const hand = withHand(empty);
+    const moving: SettleState[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      at += 33;
+      moving.push(detector.push(i % 2 === 0 ? hand : empty, at));
+    }
+    expect(moving).toContain('moving');
+    expect(moving).not.toContain('settled');
+
+    // The hand leaves and a dart is in the board.
+    const landed = withDart(empty, 30, 30);
+    const [states] = hold(detector, landed, at, 1500);
     expect(states.filter((state) => state === 'settled')).toHaveLength(1);
-    const settledIndex = states.indexOf('settled');
-    expect(states[settledIndex - 1]).toBe('moving');
-    // Still for ~300 ms at 33 ms a frame: about ten frames after the movement.
-    expect(settledIndex).toBeGreaterThanOrEqual(6);
-    expect(settledIndex).toBeLessThanOrEqual(20);
   });
 
-  it('settles again for the next dart, but not twice for one', () => {
+  it('does not fire when the scene is disturbed but the board is unchanged', () => {
     const detector = new SettleDetector();
+    const empty = board();
     let at = 0;
-    let settles = 0;
+    detector.push(empty, at);
+    [, at] = hold(detector, empty, at, 600);
 
-    // A throw, then a realistic pause: the ~1.5 s it takes to line up the next
-    // dart. Anything inside the cooldown is the same dart still wobbling.
-    const throwOne = () => {
-      for (let i = 0; i < 4; i += 1) {
-        at += 33;
-        if (detector.push(noisy(100, 30), at) === 'settled') settles += 1;
-      }
-      for (let i = 0; i < 45; i += 1) {
-        at += 33;
-        if (detector.push(flat(100), at) === 'settled') settles += 1;
-      }
-    };
-
-    detector.push(flat(100), at);
-    throwOne();
-    throwOne();
-    throwOne();
-
-    expect(settles).toBe(3);
+    // Someone walks past the camera: big motion, board identical afterwards.
+    const hand = withHand(empty);
+    for (let i = 0; i < 8; i += 1) {
+      at += 33;
+      detector.push(i % 2 === 0 ? hand : empty, at);
+    }
+    const [states] = hold(detector, empty, at, 1500);
+    expect(states).not.toContain('settled');
   });
 
-  it('does not fire on the dart still wobbling in the board', () => {
+  it('ignores slow lighting drift', () => {
     const detector = new SettleDetector();
+    let frame = board();
     let at = 0;
-    detector.push(flat(100), at);
-
-    // Big motion, then a long tail of small movement below the motion
-    // threshold but above the still threshold: the settle clock keeps resetting.
-    at += 33;
-    detector.push(noisy(100, 30), at);
+    detector.push(frame, at);
 
     let settled = false;
-    for (let i = 0; i < 15; i += 1) {
-      at += 33;
-      // Mean difference of about 4: drifting, neither moving nor still.
-      const frame = i % 2 === 0 ? noisy(100, 4) : flat(100);
-      if (detector.push(frame, at) === 'settled') settled = true;
+    for (let step = 0; step < 40; step += 1) {
+      frame = frame.map((value) => Math.min(255, value + 1));
+      [, at] = hold(detector, frame, at, 400);
+      if (detector.current === 'settled') settled = true;
     }
     expect(settled).toBe(false);
-
-    // Once it is genuinely still, it fires.
-    for (let i = 0; i < 15; i += 1) {
-      at += 33;
-      if (detector.push(flat(100), at) === 'settled') settled = true;
-    }
-    expect(settled).toBe(true);
   });
 
-  it('reports the difference it measured, for the setup coach', () => {
+  it('notices the darts being pulled out, so the next throw is measured fresh', () => {
     const detector = new SettleDetector();
-    detector.push(flat(100), 0);
-    detector.push(flat(110), 33);
-    expect(detector.difference).toBeCloseTo(10, 6);
+    const empty = board();
+    let at = 0;
+    detector.push(empty, at);
+
+    const landed = withDart(empty, 30, 30);
+    [, at] = hold(detector, landed, at, 1200);
+
+    // Board cleared: that is a change too, and the reference has to follow it.
+    const [states, afterClear] = hold(detector, empty, at, 1500);
+    expect(states.filter((state) => state === 'settled')).toHaveLength(1);
+
+    // A dart in the same place as before still registers.
+    const again = withDart(empty, 30, 30);
+    const [next] = hold(detector, again, afterClear, 1500);
+    expect(next.filter((state) => state === 'settled')).toHaveLength(1);
+  });
+
+  it('exposes both readouts so the thresholds can be set from a real board', () => {
+    const detector = new SettleDetector();
+    const empty = board();
+    detector.push(empty, 0);
+    detector.push(withHand(empty), 33);
+    expect(detector.motion).toBeGreaterThan(10);
+
+    const settled = new SettleDetector();
+    settled.push(empty, 0);
+    settled.push(withDart(empty, 10, 10), 33);
+    expect(settled.motion).toBeLessThan(1);
+    expect(settled.change).toBeGreaterThan(20);
   });
 });

@@ -7,8 +7,8 @@
  * and labelling is three taps on a picture.
  */
 
-import { CALIBRATION_BOARD_POINTS, formatHit, type Point } from '@oche/core';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { CALIBRATION_BOARD_POINTS, boardRegion, formatHit, type Point } from '@oche/core';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoardOverlay, type OverlayHandle } from '../components/BoardOverlay.js';
 import { fill, useStrings } from '../i18n/index.js';
@@ -75,7 +75,7 @@ export function Capture() {
   const [autoCapture, setAutoCapture] = useState(true);
   const [mode, setMode] = useState<Mode>('live');
   const [draft, setDraft] = useState<Point[]>([]);
-  const [frozenUrl, setFrozenUrl] = useState<string | null>(null);
+  const [frozen, setFrozen] = useState<{ url: string; width: number; height: number } | null>(null);
   const [queue, setQueue] = useState<CapturedFrame[]>([]);
   const [labelling, setLabelling] = useState<CapturedFrame | null>(null);
   const [labelDarts, setLabelDarts] = useState<LabelledDart[]>([]);
@@ -130,16 +130,32 @@ export function Capture() {
     void refreshStats();
   }, [refreshStats]);
 
+  // The capture trigger looks only at the board, so it has to know where it is.
+  const region = useMemo(
+    () =>
+      calibration && calibration.width > 0
+        ? boardRegion(calibration.toImage, { width: calibration.width, height: calibration.height })
+        : null,
+    [calibration],
+  );
+
   const camera = useCamera({
     active: cameraOn,
     onSettle,
     captureOnSettle: autoCapture && mode === 'live' && calibration !== null,
+    region,
   });
 
+  // Whatever is on screen owns the coordinate space: the frozen grab during
+  // calibration, the stored frame while labelling, the live camera otherwise.
+  // Reading the live size during calibration would silently mis-stamp the
+  // landmarks if the track renegotiated its resolution mid-drag.
   const frameSize =
     mode === 'label' && labelling
       ? { width: labelling.width, height: labelling.height }
-      : { width: camera.width || 1280, height: camera.height || 720 };
+      : mode === 'calibrate' && frozen
+        ? { width: frozen.width, height: frozen.height }
+        : { width: camera.width || 1280, height: camera.height || 720 };
 
   const staleCalibration =
     calibration !== null &&
@@ -156,7 +172,8 @@ export function Capture() {
   const startCalibration = async () => {
     const grabbed = await camera.capture();
     if (!grabbed) return;
-    setFrozenUrl(URL.createObjectURL(grabbed.jpeg));
+    if (frozen) URL.revokeObjectURL(frozen.url);
+    setFrozen({ url: URL.createObjectURL(grabbed.jpeg), width: grabbed.width, height: grabbed.height });
     setDraft(calibration && !staleCalibration ? calibration.imagePoints : defaultHandles(grabbed.width, grabbed.height));
     setMode('calibrate');
   };
@@ -165,8 +182,8 @@ export function Capture() {
     if (save && draftCalibration) {
       saveCalibration({ ...draftCalibration, ts: Date.now() });
     }
-    if (frozenUrl) URL.revokeObjectURL(frozenUrl);
-    setFrozenUrl(null);
+    if (frozen) URL.revokeObjectURL(frozen.url);
+    setFrozen(null);
     setDraft([]);
     setMode('live');
   };
@@ -181,16 +198,16 @@ export function Capture() {
   // ---- labelling ---------------------------------------------------------
 
   const openLabeller = (frame: CapturedFrame) => {
-    if (frozenUrl) URL.revokeObjectURL(frozenUrl);
-    setFrozenUrl(URL.createObjectURL(frame.jpeg));
+    if (frozen) URL.revokeObjectURL(frozen.url);
+    setFrozen({ url: URL.createObjectURL(frame.jpeg), width: frame.width, height: frame.height });
     setLabelling(frame);
     setLabelDarts(frame.darts);
     setMode('label');
   };
 
   const closeLabeller = () => {
-    if (frozenUrl) URL.revokeObjectURL(frozenUrl);
-    setFrozenUrl(null);
+    if (frozen) URL.revokeObjectURL(frozen.url);
+    setFrozen(null);
     setLabelling(null);
     setLabelDarts([]);
     setMode('live');
@@ -245,8 +262,8 @@ export function Capture() {
   };
 
   useEffect(() => () => {
-    if (frozenUrl) URL.revokeObjectURL(frozenUrl);
-  }, [frozenUrl]);
+    if (frozen) URL.revokeObjectURL(frozen.url);
+  }, [frozen]);
 
   const overlayToImage =
     mode === 'calibrate'
@@ -277,7 +294,7 @@ export function Capture() {
 
       <div className="stage" style={{ aspectRatio: `${frameSize.width} / ${frameSize.height}` }}>
         <video ref={camera.videoRef} className="stage-video" playsInline muted />
-        {frozenUrl && <img className="stage-frozen" src={frozenUrl} alt="" />}
+        {frozen && <img className="stage-frozen" src={frozen.url} alt="" />}
         <BoardOverlay
           width={frameSize.width}
           height={frameSize.height}
@@ -306,6 +323,8 @@ export function Capture() {
         {mode === 'live' && cameraOn && (
           <div className="stage-badge">
             {camera.moving ? t.capture.moving : t.capture.waiting} · {t.capture.captured} {camera.settles}
+            {' · '}
+            {t.capture.readout}: {camera.motion.toFixed(1)} / {camera.change.toFixed(1)}
           </div>
         )}
       </div>
@@ -398,6 +417,9 @@ export function Capture() {
       )}
 
       {mode === 'live' && !calibration && cameraOn && <p className="hint">{t.capture.noCalibration}</p>}
+      {mode === 'live' && cameraOn && calibration && autoCapture && (
+        <p className="hint">{t.capture.autoNote}</p>
+      )}
       {mode === 'live' && queue.length >= BACKLOG_LIMIT && <p className="warning">{t.capture.backlog}</p>}
 
       {mode === 'live' && queue.length > 0 && (
