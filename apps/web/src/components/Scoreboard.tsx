@@ -23,7 +23,15 @@ export function Scoreboard({ snapshot }: ScoreboardProps) {
     <div className="scoreboard">
       {snapshot.config.players.map((player) => {
         const isCurrent = current?.playerId === player.id;
-        const remaining = isCurrent ? current.remaining : leg?.remaining[player.id] ?? snapshot.config.startScore;
+        // Once a leg is won, every card shows the next leg's start score: the
+        // won leg's zero (and the loser's remainder) belongs to the history,
+        // not to the board everyone is about to throw at.
+        const legOver = leg?.winnerId != null;
+        const remaining = isCurrent
+          ? current.remaining
+          : legOver
+            ? snapshot.config.startScore
+            : leg?.remaining[player.id] ?? snapshot.config.startScore;
         const playerStats = stats[player.id]!;
         const visit = [...(leg?.visits ?? [])].reverse().find((v) => v.playerId === player.id);
 

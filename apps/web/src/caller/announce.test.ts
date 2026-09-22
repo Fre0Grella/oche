@@ -35,15 +35,16 @@ describe('announce', () => {
     expect(say(['T20', 'T20'])).toEqual([]);
   });
 
+  // 501 − 180 = 321: too far out to be worth saying, so it hands over instead.
   it('calls the visit total in caller words, then the next player', () => {
     expect(say(['T20', 'T20', 'T20'])).toEqual(['one hundred and eighty', 'Bob to throw']);
     expect(say(['S5', 'S1', 'MISS'])).toEqual(['six', 'Bob to throw']);
     expect(say(['MISS', 'MISS', 'MISS'])).toEqual(['No score', 'Bob to throw']);
   });
 
-  it('says what the next player requires once they are in checkout range', () => {
+  it('tells the player who threw what they are left on, not the opponent', () => {
     const cfg = { ...config, startScore: 170 };
-    expect(say(['T20', 'T20', 'S10'], cfg)).toEqual(['one hundred and thirty', 'Bob requires one hundred and seventy']);
+    expect(say(['T20', 'T20', 'S10'], cfg)).toEqual(['one hundred and thirty', 'Ann requires forty']);
   });
 
   it('calls game shot on a leg, and game set and match on the last one', () => {
@@ -54,8 +55,8 @@ describe('announce', () => {
     expect(say(['D20'], matchCfg)).toEqual(['Game, set and match!']);
   });
 
-  it('calls no score for a bust', () => {
+  it('calls no score for a bust and repeats what the thrower still needs', () => {
     const cfg = { ...config, startScore: 20 };
-    expect(say(['S19'], cfg)).toEqual(['No score', 'Bob requires twenty']);
+    expect(say(['S19'], cfg)).toEqual(['No score', 'Ann requires twenty']);
   });
 });
