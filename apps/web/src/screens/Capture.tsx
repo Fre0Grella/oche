@@ -77,6 +77,8 @@ export function Capture() {
   const setScreen = useMatchStore((s) => s.setScreen);
   const calibration = useMatchStore((s) => s.settings.calibration);
   const saveCalibration = useMatchStore((s) => s.saveCalibration);
+  const playMode = useMatchStore((s) => s.mode);
+  const remoteStream = useMatchStore((s) => s.remoteStream);
 
   const [cameraOn, setCameraOn] = useState(false);
   const [autoCapture, setAutoCapture] = useState(true);
@@ -151,12 +153,16 @@ export function Capture() {
     [calibration],
   );
 
+  const paired = playMode === 'paired' && remoteStream !== null;
+
   const camera = useCamera({
-    active: cameraOn,
+    // A paired phone is already filming, so there is nothing to start here.
+    active: cameraOn || paired,
     onSettle,
     captureOnSettle: autoCapture && mode === 'live' && calibration !== null,
     region,
     reference,
+    stream: paired ? remoteStream : null,
   });
 
   // Whatever is on screen owns the coordinate space: the frozen grab during
@@ -335,7 +341,7 @@ export function Capture() {
         </p>
       )}
 
-      {cameraOn && (mode === 'live' || mode === 'calibrate') && (
+      {(cameraOn || paired) && (mode === 'live' || mode === 'calibrate') && (
         <SetupCoach
           calibrated={mode === 'calibrate' ? draftCalibration !== null : calibration !== null}
           view={view}
@@ -372,7 +378,7 @@ export function Capture() {
             setLabelDarts((darts) => [...darts, readDart(labelling.calibration, point)]);
           }}
         />
-        {mode === 'live' && cameraOn && (
+        {mode === 'live' && (cameraOn || paired) && (
           <div className="stage-badge">
             {camera.moving ? t.capture.moving : t.capture.waiting} · {t.capture.captured} {camera.settles}
             {' · '}
@@ -440,9 +446,13 @@ export function Capture() {
 
       {mode === 'live' && (
         <div className="controls">
-          <button type="button" className={`chip${cameraOn ? ' chip-on' : ''}`} onClick={() => setCameraOn((on) => !on)}>
-            {cameraOn ? t.capture.stop : t.capture.start}
-          </button>
+          {paired ? (
+            <span className="chip chip-on">{t.capture.phoneCamera}</span>
+          ) : (
+            <button type="button" className={`chip${cameraOn ? ' chip-on' : ''}`} onClick={() => setCameraOn((on) => !on)}>
+              {cameraOn ? t.capture.stop : t.capture.start}
+            </button>
+          )}
           <button type="button" className="chip" onClick={() => void startCalibration()} disabled={!camera.ready}>
             {calibration ? t.capture.recalibrate : t.capture.calibrate}
           </button>

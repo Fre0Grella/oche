@@ -651,3 +651,265 @@ input {
   color: var(--accent);
   font-weight: 700;
 }
+
+/* ---------- landing ---------- */
+
+.screen-landing {
+  gap: 20px;
+}
+
+.landing-hero {
+  padding-top: 8vh;
+}
+
+.landing-mark {
+  font-size: clamp(3rem, 18vw, 5.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.landing-lede {
+  margin: 12px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 46ch;
+}
+
+.landing-cta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.landing-cta .primary {
+  flex: 1;
+  min-width: 200px;
+  font-size: 1.05rem;
+  min-height: 52px;
+}
+
+.landing-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.landing-points li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.landing-points b {
+  font-size: 0.95rem;
+}
+
+.landing-points span {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.landing-honest p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.landing-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.landing-foot a {
+  color: var(--accent);
+}
+
+/* ---------- mode chooser ---------- */
+
+.mode-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  text-align: left;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  min-height: 44px;
+}
+
+.mode-card:hover,
+.mode-card:focus-visible {
+  border-color: var(--accent);
+}
+
+.mode-card h2 {
+  font-size: 1.15rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.mode-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.mode-card ul {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mode-card ul li::marker {
+  color: var(--accent);
+}
+
+.mode-go {
+  margin-top: 4px;
+  color: var(--accent);
+  font-weight: 650;
+  font-size: 0.9rem;
+}
+
+.mode-art {
+  width: 100%;
+  height: auto;
+  color: var(--text);
+  background: var(--bg-sunken);
+  border-radius: 10px;
+  padding: 6px;
+}
+
+.mode-waves .wave {
+  animation: wave-pulse 1.8s ease-in-out infinite;
+}
+
+.mode-waves .wave-2 {
+  animation-delay: 0.2s;
+}
+
+.mode-waves .wave-3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes wave-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-waves .wave,
+  .coach-error .coach-dot,
+  .dartboard-target {
+    animation: none;
+  }
+}
+
+/* ---------- pairing ---------- */
+
+.qr {
+  width: min(100%, 420px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  display: block;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0;
+}
+
+.pair-instruction {
+  margin: 0;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.scanner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scanner-frame {
+  position: relative;
+  width: min(100%, 460px);
+  margin: 0 auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--line);
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-reticle {
+  position: absolute;
+  inset: 12%;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  opacity: 0.8;
+}
+
+.camera-live {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.camera-live-hidden {
+  display: none;
+}
+
+.camera-role-preview {
+  width: min(100%, 320px);
+  margin: 0 auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: #000;
+}
+
+/* A phone acting as a camera should be as dark as the room allows. */
+.screen-dim {
+  filter: brightness(0.75);
+}

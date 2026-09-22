@@ -24,6 +24,12 @@ import { SettleDetector } from './settle.js';
 export interface UseCameraOptions {
   active: boolean;
   deviceId?: string;
+  /**
+   * Video from somewhere else — in paired mode, the phone's camera arriving
+   * over WebRTC. When set, this hook watches that stream instead of opening a
+   * camera of its own, and everything downstream is identical.
+   */
+  stream?: MediaStream | null;
   /** Called once per throw, with the frame taken when the board went still. */
   onSettle?: (frame: GrabbedFrame) => void;
   /** Set false to watch for motion without photographing anything. */
@@ -66,6 +72,7 @@ export function useCamera({
   captureOnSettle = true,
   region = null,
   reference = null,
+  stream: externalStream = null,
 }: UseCameraOptions): CameraState {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -109,12 +116,14 @@ export function useCamera({
 
     const run = async () => {
       try {
-        const stream = await startCamera(deviceId);
+        const stream = externalStream ?? (await startCamera(deviceId));
         if (cancelled) {
-          stopCamera(stream);
+          if (!externalStream) stopCamera(stream);
           return;
         }
-        streamRef.current = stream;
+        // A stream we were handed belongs to whoever handed it over: it is not
+        // ours to stop when this component unmounts.
+        streamRef.current = externalStream ? null : stream;
         const video = videoRef.current;
         if (!video) return;
 
@@ -127,7 +136,8 @@ export function useCamera({
         setReady(true);
         setError(null);
         detector.current.reset();
-        wakeLock = await keepAwake();
+        // The phone holds its own wake lock in paired mode.
+        if (!externalStream) wakeLock = await keepAwake();
 
         const tick = () => {
           if (cancelled) return;
@@ -192,7 +202,7 @@ export function useCamera({
     // `size` is only read to notice a resolution change; re-running on it would
     // restart the camera every time the video element reports a new size.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, deviceId, captureOnSettle]);
+  }, [active, deviceId, captureOnSettle, externalStream]);
 
   return {
     videoRef,

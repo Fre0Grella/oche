@@ -1,25 +1,44 @@
 import { hit } from '@oche/core';
 import { render, screen, waitFor } from '@testing-library/react';
 import { act } from 'react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { App } from './App.js';
 import { useMatchStore } from './store/match.js';
 
+/** Clicks a button by its visible name and lets React settle. */
+async function press(name: RegExp) {
+  const button = await screen.findByRole('button', { name });
+  await act(async () => {
+    button.click();
+  });
+}
+
 describe('the app', () => {
-  it('opens on match setup, starts a match and shows the score falling', async () => {
+  beforeEach(() => {
+    // Each test arrives as a first-time visitor would: at the front door.
+    history.replaceState(null, '', '#/');
+    useMatchStore.setState({ ready: false, screen: 'landing' });
+  });
+
+  it('goes landing → mode → setup → game, and scores', async () => {
     render(<App />);
 
-    const start = await screen.findByRole('button', { name: /start match/i });
-    await act(async () => {
-      start.click();
-    });
+    // It opens by explaining what it is, not by dropping you into a leg.
+    await press(/play darts/i);
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('mode'));
 
+    // Both modes are offered, with a picture each.
+    expect(screen.getByLabelText(/one phone, watching the board/i)).toBeDefined();
+    expect(screen.getByLabelText(/phone as the camera/i)).toBeDefined();
+
+    await press(/use one device/i);
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('setup'));
+    expect(useMatchStore.getState().mode).toBe('solo');
+
+    await press(/start match/i);
     await waitFor(() => expect(useMatchStore.getState().screen).toBe('game'));
-
-    // Two players at 501 each.
     expect(screen.getAllByText('501')).toHaveLength(2);
-    expect(screen.getByLabelText('Dartboard')).toBeDefined();
 
     await act(async () => {
       useMatchStore.getState().throwDart(hit(20, 'treble'), { pos: { x: 0, y: 103 } });
@@ -27,8 +46,21 @@ describe('the app', () => {
       useMatchStore.getState().throwDart(hit(20, 'treble'));
     });
 
-    // 180 thrown: the thrower is on 321 and the throw has passed over.
     expect(screen.getByText('321')).toBeDefined();
     expect(screen.getByText(/Player 2 to throw/)).toBeDefined();
+  });
+
+  it('offers the pairing route from the same chooser', async () => {
+    render(<App />);
+
+    // A match may be in progress from the previous test; the landing page
+    // offers to carry on with it, but "Play darts" still starts a new one.
+    await press(/play darts/i);
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('mode'));
+
+    await press(/pair two devices/i);
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('pair'));
+    expect(useMatchStore.getState().mode).toBe('paired');
+    expect(screen.getByText(/two codes, no accounts, no internet/i)).toBeDefined();
   });
 });

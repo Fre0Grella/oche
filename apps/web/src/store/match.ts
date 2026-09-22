@@ -31,7 +31,13 @@ import {
   type StoredMatch,
 } from '../storage/db.js';
 
-export type Screen = 'setup' | 'game' | 'history' | 'capture';
+import type { PairingConnection } from '../pairing/session.js';
+import { hashForScreen, type Screen } from '../route.js';
+
+export type { Screen };
+
+/** Solo: the phone does everything. Paired: a phone films, a laptop thinks. */
+export type PlayMode = 'solo' | 'paired';
 
 export interface ThrowOptions {
   pos?: Point;
@@ -48,7 +54,13 @@ interface MatchState {
   snapshot: MatchSnapshot | null;
   history: StoredMatch[];
 
-  init: () => Promise<void>;
+  mode: PlayMode;
+  /** The paired phone, when there is one. Never persisted: it is a live socket. */
+  pairing: PairingConnection | null;
+  /** The video coming from the paired phone. */
+  remoteStream: MediaStream | null;
+
+  init: (screen?: Screen) => Promise<void>;
   setScreen: (screen: Screen) => void;
   startMatch: (config: X01Config) => void;
   resumeMatch: (id: string) => Promise<void>;
@@ -63,6 +75,10 @@ interface MatchState {
   setEntryMode: (mode: Settings['entryMode']) => void;
   saveCalibration: (calibration: Settings['calibration']) => void;
   setKeepFrames: (on: boolean) => void;
+
+  setMode: (mode: PlayMode) => void;
+  setPairing: (pairing: PairingConnection, stream: MediaStream) => void;
+  clearPairing: () => void;
 }
 
 function newId(): string {
@@ -97,27 +113,39 @@ export const useMatchStore = create<MatchState>((set, get) => {
 
   return {
     ready: false,
-    screen: 'setup',
+    screen: 'landing',
     settings: DEFAULT_SETTINGS,
     match: null,
     snapshot: null,
     history: [],
+    mode: 'solo',
+    pairing: null,
+    remoteStream: null,
 
-    async init() {
+    async init(screen) {
       const [settings, matches] = await Promise.all([loadSettings(), listMatches()]);
       const unfinished = matches.find((m) => !m.finished && m.events.length > 0);
+
+      // A match in progress is resumed, but the landing page still comes first
+      // unless the address says otherwise: arriving at oche should explain what
+      // it is before it drops you into someone else's half-finished leg.
+      const resolved: Screen = screen ?? 'landing';
       set({
         ready: true,
         settings,
         history: matches,
         match: unfinished ?? null,
         snapshot: unfinished ? reduceMatch(unfinished.config, unfinished.events) : null,
-        screen: unfinished ? 'game' : 'setup',
+        screen: resolved === 'game' && !unfinished ? 'setup' : resolved,
       });
     },
 
     setScreen(screen) {
       set({ screen });
+      if (typeof location !== 'undefined') {
+        const hash = hashForScreen(screen);
+        if (location.hash !== hash) history.pushState(null, '', hash);
+      }
       if (screen === 'history') void get().refreshHistory();
     },
 
@@ -213,6 +241,21 @@ export const useMatchStore = create<MatchState>((set, get) => {
     setKeepFrames(keepFrames) {
       set({ settings: { ...get().settings, keepFrames } });
       void saveSetting('keepFrames', keepFrames);
+    },
+
+    setMode(mode) {
+      set({ mode });
+      if (mode === 'solo') get().clearPairing();
+    },
+
+    setPairing(pairing, remoteStream) {
+      set({ pairing, remoteStream, mode: 'paired' });
+    },
+
+    clearPairing() {
+      const { pairing } = get();
+      pairing?.close();
+      set({ pairing: null, remoteStream: null });
     },
   };
 });
