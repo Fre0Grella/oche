@@ -1,0 +1,25 @@
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+.vite/
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+
+# Python / ML
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Datasets and model artefacts: never committed, see docs/08-licensing-and-data.md
+ml/data/
+ml/runs/
+ml/exports/
+*.pt
+*.onnx
+*.pkl
