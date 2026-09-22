@@ -23,7 +23,7 @@ the spoken caller work today, on a phone or a laptop.
 | **Stats** | The usual ones (3-dart average, first 9, checkout %, darts per leg, tons) plus the ones only a camera can give: where your darts actually land, how tightly they group, which way you miss, and where *you* should be aiming. |
 | **Camera setup** | Point the phone at your board and the app tells you what to fix — cut off, too dark, too straight on, camera moved — then you mark the four board points once. |
 | **Mark where they landed** | With the camera on, every visit is photographed and you tap where each dart went. That corrects the score and builds the training set for the autoscorer. It stays on your device until you export it. |
-| **Two device modes** | **Solo:** the phone does everything. **Paired:** a laptop does the vision work and the phone is just a camera, over WebRTC, so the phone stays cool. |
+| **Two device modes** | **Solo:** the phone does everything. **Paired:** the phone is only a camera and a laptop does the rest. Pairing is two QR codes and no server at all — the video goes straight between the devices and never leaves your network, so it works on a hotspot with no internet. |
 
 Offline-first: it's a PWA, all game data lives on your device, and there is no
 account to create.

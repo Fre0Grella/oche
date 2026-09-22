@@ -62,10 +62,17 @@ scoring, calling. Inference only runs on settle events, never per frame, which
 is what keeps the phone cool and the battery alive.
 
 **Paired (two devices).** A laptop/desktop browser is the *hub*: it runs the
-vision model, holds the game state and shows the scoreboard. A phone joins by
-scanning a QR code and becomes a dumb camera, streaming over WebRTC with its
-hardware video encoder — no inference, dimmed screen, wake lock on. See
+vision pipeline, holds the game state and shows the scoreboard. The phone
+becomes a camera and nothing else — no inference, dimmed screen, wake lock on —
+streaming over WebRTC with its hardware encoder.
+
+Pairing is two QR codes and no server: the laptop shows one, the phone reads it
+and shows its answer back, and the laptop's webcam reads that. Nothing touches
+the internet, so it works on a hotspot with no data. See
 [05 – Dual device](05-dual-device.md).
+
+Which mode you are in is chosen on the way into the app, from a page that shows
+what each one does rather than describing it.
 
 The hub is a browser tab. There is no desktop app to install and no server that
 has to be running for a game to work.

@@ -109,11 +109,17 @@ Only when the gate in doc 03 is met: proposals become scores, with the confirm/
 correct UI, the low-confidence question, and corrections fed back as training
 data.
 
-### B7. Paired mode
-Signalling worker, QR pairing, WebRTC video + data channel, camera-role UI,
-precision-still requests, reconnection. Deliberately after autoscoring works in
-solo mode, because pairing multiplies the debugging surface of a system that must
-already be known-good.
+### B7. Paired mode — done, ahead of schedule
+Brought forward because it turned out not to depend on the model at all: the hub
+runs the same vision pipeline over a remote stream as over a local one.
+
+QR pairing in both directions with no server of any kind, WebRTC video plus a
+control channel, a camera-role screen for the phone, and a landing page and mode
+chooser in front of the whole app. See [05 – Dual device](05-dual-device.md) for
+the measurements.
+
+**Outstanding**: precision full-resolution stills over the data channel, and
+reconnection without re-scanning.
 
 ## What would make this fail, and the countermeasure
 
