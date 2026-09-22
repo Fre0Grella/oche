@@ -52,8 +52,13 @@ export interface CapturedFrame {
   darts: LabelledDart[];
   /** False until someone has confirmed where every dart in it landed. */
   labelled: boolean;
-  /** What the app believed at the time — the reading being reported as wrong. */
-  reported?: { hits: string[]; source: string };
+  /**
+   * What the app believed at the time — the reading being reported as wrong,
+   * with the ids of the dart events it refers to, so an exported frame can be
+   * joined back to the match's correction history. That pairing of "what was
+   * read" against "what was true" is the measurement shadow mode is built on.
+   */
+  reported?: { hits: string[]; dartIds: string[]; source: string };
   note?: string;
 }
 
