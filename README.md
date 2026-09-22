@@ -4,8 +4,8 @@ A web app for playing darts: X01 scoring, a spoken caller, checkout help, deep
 statistics — and a camera autoscorer that reads the board and scores your darts
 for you, running entirely in the browser.
 
-**Play it: <https://fre0grella.github.io/oche/>** — X01 with manual and voice-free
-scoring works today, on a phone or a laptop.
+**Play it: <https://fre0grella.github.io/oche/>** — X01, tap-the-board scoring and
+the spoken caller work today, on a phone or a laptop.
 
 > **Status: planning + foundation.** Nothing here claims to score darts from a
 > camera yet. The autoscorer is a gated track: it does not get wired into the
