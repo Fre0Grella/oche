@@ -327,6 +327,10 @@ input {
   user-select: none;
   border-radius: 50%;
   background: #0a0a0a;
+  /* The magnifying lens stays above the finger even when the finger is at the
+     top of the board, which means it has to be allowed to float past the edge
+     rather than move out of the way. */
+  overflow: visible;
 }
 
 .dartboard-target {

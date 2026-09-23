@@ -11,41 +11,34 @@ describe('placeLens', () => {
   it('puts the lens above the finger, where a hand is not', () => {
     const lens = placeLens({ x: 0, y: 0 });
     expect(lens.cy).toBeLessThan(0); // smaller y is higher on screen
-    expect(lens.side).toBe('above');
     expect(lens.cx).toBe(0);
   });
 
-  it('goes sideways near the top rather than under the hand', () => {
-    // The 20 is at the top of the board, so this is the common case.
-    const lens = placeLens({ x: 0, y: -R + 60 });
-    expect(lens.side === 'left' || lens.side === 'right' || lens.side === 'above').toBe(true);
-    expect(lens.side).not.toBe('below');
-  });
-
-  it('picks the side with more room', () => {
-    expect(placeLens({ x: 120, y: -R + 60 }).side).toBe('left');
-    expect(placeLens({ x: -120, y: -R + 60 }).side).toBe('right');
-  });
-
-  it('never lets the lens leave the board frame', () => {
-    for (const point of [
-      { x: -R, y: -R },
-      { x: R, y: R },
-      { x: R, y: -R },
-      { x: 0, y: R },
-    ]) {
-      const lens = placeLens(point);
-      expect(Math.abs(lens.cx)).toBeLessThanOrEqual(R);
-      expect(Math.abs(lens.cy)).toBeLessThanOrEqual(R);
+  it('stays above the finger across the whole board, including the 20', () => {
+    // The lens jumping aside as the finger crossed the top was the complaint
+    // this replaced: wherever the finger is, the lens is directly above it.
+    for (let x = -R; x <= R; x += 10) {
+      for (let y = -R; y <= R; y += 10) {
+        const lens = placeLens({ x, y });
+        expect(lens.cy, `finger at ${x},${y}`).toBeLessThan(y);
+      }
     }
   });
 
-  it('never covers the point it is magnifying, wherever the finger is', () => {
+  it('tracks the finger sideways exactly, with no sliding about', () => {
+    // The lens is directly above the finger everywhere, including off the edge
+    // of the board: never nudged aside, never re-found with the eyes.
+    for (const x of [-R, -170, -90, 0, 90, 170, R]) {
+      expect(placeLens({ x, y: 0 }).cx).toBe(x);
+    }
+  });
+
+  it('never covers the point it is magnifying', () => {
     for (let x = -R; x <= R; x += 25) {
       for (let y = -R; y <= R; y += 25) {
         const lens = placeLens({ x, y });
         const gap = Math.hypot(lens.cx - x, lens.cy - y);
-        expect(gap, `finger at ${x},${y} (${lens.side})`).toBeGreaterThan(58);
+        expect(gap, `finger at ${x},${y}`).toBeGreaterThan(58);
       }
     }
   });

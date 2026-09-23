@@ -95,48 +95,27 @@ function buildBeds(): Bed[] {
 export interface LensPlacement {
   cx: number;
   cy: number;
-  /** Where it ended up relative to the finger. */
-  side: 'above' | 'left' | 'right' | 'below';
 }
 
 /**
- * Where to put the lens so that it never covers the finger, never leaves the
- * board's frame, and — as far as possible — is not where the hand is.
+ * Where to put the lens: directly above the finger, always, with no exceptions.
  *
- * Above by default, because a hand comes from below. Near the top of the board,
- * which is exactly where the 20 is and so where this matters most, it goes
- * *sideways* rather than below: a lens under the finger is a lens under the
- * hand holding the phone. Below is the last resort.
+ * An earlier version moved it sideways near the top of the board and below it
+ * in the corners, to keep the whole lens inside the board's frame. That was
+ * worse than the problem: crossing the 20 made it jump from one side to the
+ * other, and a lens you have to re-find with your eyes is not a lens.
+ *
+ * So it never moves relative to the finger, and is allowed to float past the
+ * edge of the board instead — the SVG is `overflow: visible` — exactly as a
+ * phone's text loupe floats over whatever happens to be above it.
  *
  * Works in SVG coordinates, so "above" means a smaller y.
  */
 export function placeLens(
   point: { x: number; y: number },
-  view = R,
-  radius = LENS.radius,
   offset = LENS.offset,
 ): LensPlacement {
-  const limit = view - radius - 2;
-  const clamp = (value: number) => Math.max(-limit, Math.min(limit, value));
-  // Enough that the fingertip and the lens never touch.
-  const clearance = radius + 14;
-  const clear = (cx: number, cy: number) => Math.hypot(cx - point.x, cy - point.y) >= clearance;
-
-  const above = point.y - offset;
-  if (above - radius >= -view) return { cx: clamp(point.x), cy: above, side: 'above' };
-
-  // Squeezed against the top edge: keep it above if it still clears the finger.
-  const squeezed = clamp(above);
-  if (clear(clamp(point.x), squeezed)) return { cx: clamp(point.x), cy: squeezed, side: 'above' };
-
-  // Otherwise sideways, on whichever side has more room.
-  const toLeft = point.x > 0;
-  const sideways = clamp(point.x + (toLeft ? -offset : offset));
-  if (clear(sideways, clamp(point.y))) {
-    return { cx: sideways, cy: clamp(point.y), side: toLeft ? 'left' : 'right' };
-  }
-
-  return { cx: clamp(point.x), cy: clamp(point.y + offset), side: 'below' };
+  return { cx: point.x, cy: point.y - offset };
 }
 
 export interface BoardDart {

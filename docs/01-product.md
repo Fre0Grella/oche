@@ -30,12 +30,15 @@ sentence.
 
    A treble bed is 8 mm wide — about six pixels on a phone, and completely
    hidden under a fingertip — so the board behaves like a text cursor on a
-   touchscreen: pressing raises a **magnifying lens, offset from the finger**,
+   touchscreen: pressing raises a **magnifying lens directly above the finger**,
    showing the board underneath at 3.2× with a crosshair on the exact point and
-   the score it would give. Drag to adjust, lift to commit. The lens goes above
-   the finger, or sideways when the finger is near the top of the board (which
-   is where the 20 is) — never below, because below the finger is where the
-   hand holding the phone is.
+   the score it would give. Drag to adjust, lift to commit.
+
+   The lens never moves relative to the finger. An earlier version slid it
+   sideways near the top of the board to keep it within the frame, and crossing
+   the 20 made it jump from one side to the other — a lens you have to re-find
+   with your eyes is not a lens. It floats past the edge of the board instead,
+   the way a phone's text loupe floats over whatever is above it.
 
    A keypad (single / double / treble plus the number) is there for when tapping
    the board is not wanted, and records the score without a position; the board
