@@ -25,13 +25,29 @@ export function Setup() {
   const [setsToWin, setSetsToWin] = useState(1);
 
   const start = () => {
+    // A player's id comes from their name, so the same person's matches add up
+    // across weeks. Random per-match ids would make career statistics
+    // impossible — every match would look like a different player.
+    const used = new Set<string>();
+    const identify = (name: string) => {
+      const base = name.toLowerCase().replace(/\s+/g, ' ').trim() || 'player';
+      let id = base;
+      let suffix = 2;
+      while (used.has(id)) id = `${base} ${suffix++}`;
+      used.add(id);
+      return id;
+    };
+
     const config: X01Config = {
       startScore,
       inRule,
       outRule,
       legsPerSet,
       setsToWin,
-      players: players.map((p, index) => ({ ...p, name: p.name.trim() || `Player ${index + 1}` })),
+      players: players.map((p, index) => {
+        const name = p.name.trim() || `Player ${index + 1}`;
+        return { id: identify(name), name };
+      }),
     };
     startMatch(config);
   };
@@ -156,6 +172,9 @@ export function Setup() {
             {t.setup.history}
           </button>
         )}
+        <button type="button" className="chip" onClick={() => setScreen('stats')}>
+          {t.stats.title}
+        </button>
         <button type="button" className="chip" onClick={() => setScreen('capture')}>
           {t.capture.title}
         </button>

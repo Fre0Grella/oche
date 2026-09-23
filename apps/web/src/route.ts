@@ -14,7 +14,8 @@ export type Screen =
   | 'history'
   | 'capture'
   | 'pair'
-  | 'camera';
+  | 'camera'
+  | 'stats';
 
 const HASHES: Record<Screen, string> = {
   landing: '#/',
@@ -25,6 +26,7 @@ const HASHES: Record<Screen, string> = {
   capture: '#/camera',
   pair: '#/pair',
   camera: '#/phone',
+  stats: '#/stats',
 };
 
 const SCREENS = Object.fromEntries(

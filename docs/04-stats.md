@@ -6,7 +6,12 @@ broadcast shows. **Positional** stats need `pos` on each dart, which is what the
 autoscorer produces — these are the ones worth building this project for.
 
 Everything is computed in `packages/core/src/stats/` from the event log, with no
-stored aggregates, so a fixed bug retroactively fixes history.
+stored aggregates, so a fixed bug retroactively fixes history. `match.ts` folds
+one match, `career.ts` folds a season, and `positional.ts` holds the geometry.
+
+**Built and on the statistics page**: every classical number below, the session
+trend, the scoring bands, the per-double table, the heatmap, grouping, the
+sector split, and the aiming map. What is not built yet is marked as such.
 
 ## Tier 1 — classical
 
@@ -67,9 +72,9 @@ tapped positions are marked ⚑ and are only computed over camera-sourced darts.
 | **Visit group size** ⚑ | Largest pairwise distance between the three darts of a visit. The stat that improves when your rhythm is right. |
 | **T20 sector breakdown** | Of darts aimed at T20: % in the treble, % in the 20 bed, % in 5, % in 1, % elsewhere. The single most useful practice stat for a scorer. |
 | **Double miss direction** ⚑ | When a double is missed, where did it go: inside (the single bed), outside (off the board), or into a neighbouring segment. Missing D20 *high* and missing it *left* need opposite fixes. |
-| **Wire rate** ⚑ | Fraction of darts landing within 1.5 mm of a wire. High wire rate with a good bias means you are closer than the scoreboard suggests. |
+| **Wire rate** ⚑ *(not built)* | Fraction of darts landing within 1.5 mm of a wire. High wire rate with a good bias means you are closer than the scoreboard suggests. |
 | **Skill σ and optimal aim map** ⚑ | See below. |
-| **Rhythm** | Seconds between darts and per visit, from event timestamps, correlated with score. Camera mode gets this for free. |
+| **Rhythm** *(not built)* | Seconds between darts and per visit, from event timestamps, correlated with score. Camera mode gets this for free. |
 
 ### Skill σ and the personalised aim map
 
@@ -89,10 +94,17 @@ neighbours of 20 (1 and 5).
 Nothing else in a darts app can tell a player this, and it needs exactly what
 the autoscorer produces. It is the flagship statistic of this project.
 
-Implementation notes: estimate a full 2×2 covariance (not an isotropic σ) per
-player over a rolling window of camera-scored darts; require a minimum sample
-(~100 darts) before showing a map; recompute lazily in a Worker; render the map
-at 2 mm resolution over the board SVG.
+As built: the board's score function is rasterised at 4 mm and convolved with
+the player's own spread by a separable Gaussian, and the maximum is marked on
+the map. The spread is estimated from the darts thrown at the player's most-used
+number, taking that cluster as the intended target — the paper uses EM because
+it does not know what was aimed at; here the busiest sector is a good enough
+stand-in, and the page says so next to the result. The map needs 50 darts with
+positions before it appears, which is the sample size the paper works with.
+
+The tests pin the behaviour the paper predicts: a 6 mm group is sent to the
+treble 20, a 45 mm group somewhere else entirely, and a 90 mm group to the
+middle of the board.
 
 ## Presentation rules
 

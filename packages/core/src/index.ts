@@ -4,6 +4,8 @@ export * from './game/rules.js';
 export * from './game/checkout.js';
 export * from './game/x01.js';
 export * from './stats/match.js';
+export * from './stats/career.js';
+export * from './stats/positional.js';
 export * from './vision/homography.js';
 export * from './vision/calibration.js';
 export * from './vision/quality.js';
