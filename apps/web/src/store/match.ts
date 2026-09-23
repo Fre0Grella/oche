@@ -23,10 +23,14 @@ import { caller } from '../caller/caller.js';
 import {
   DEFAULT_SETTINGS,
   deleteMatch as deleteStoredMatch,
+  deleteProfile as deleteStoredProfile,
   listMatches,
+  listProfiles,
   loadSettings,
   putMatch,
+  putProfile,
   saveSetting,
+  type Profile,
   type Settings,
   type StoredMatch,
 } from '../storage/db.js';
@@ -54,6 +58,7 @@ interface MatchState {
   snapshot: MatchSnapshot | null;
   history: StoredMatch[];
 
+  profiles: Profile[];
   mode: PlayMode;
   /** The paired phone, when there is one. Never persisted: it is a live socket. */
   pairing: PairingConnection | null;
@@ -76,6 +81,9 @@ interface MatchState {
   saveCalibration: (calibration: Settings['calibration']) => void;
   setKeepFrames: (on: boolean) => void;
 
+  createProfile: (name: string) => Promise<Profile>;
+  renameProfile: (id: string, name: string) => Promise<void>;
+  removeProfile: (id: string) => Promise<void>;
   setMode: (mode: PlayMode) => void;
   setPairing: (pairing: PairingConnection, stream: MediaStream) => void;
   clearPairing: () => void;
@@ -118,12 +126,17 @@ export const useMatchStore = create<MatchState>((set, get) => {
     match: null,
     snapshot: null,
     history: [],
+    profiles: [],
     mode: 'solo',
     pairing: null,
     remoteStream: null,
 
     async init(screen) {
-      const [settings, matches] = await Promise.all([loadSettings(), listMatches()]);
+      const [settings, matches, profiles] = await Promise.all([
+        loadSettings(),
+        listMatches(),
+        listProfiles(),
+      ]);
       const unfinished = matches.find((m) => !m.finished && m.events.length > 0);
 
       // A match in progress is resumed, but the landing page still comes first
@@ -134,6 +147,7 @@ export const useMatchStore = create<MatchState>((set, get) => {
         ready: true,
         settings,
         history: matches,
+        profiles,
         match: unfinished ?? null,
         snapshot: unfinished ? reduceMatch(unfinished.config, unfinished.events) : null,
         screen: resolved === 'game' && !unfinished ? 'setup' : resolved,
@@ -150,6 +164,18 @@ export const useMatchStore = create<MatchState>((set, get) => {
     },
 
     startMatch(config) {
+      // Playing marks a profile as used, which is what orders the picker.
+      const now = Date.now();
+      const played = get().profiles.map((profile) =>
+        config.players.some((player) => player.id === profile.id && !player.temporary)
+          ? { ...profile, lastPlayedAt: now }
+          : profile,
+      );
+      set({ profiles: played });
+      for (const profile of played) {
+        if (profile.lastPlayedAt === now) void putProfile(profile);
+      }
+
       const match: StoredMatch = {
         id: newId(),
         createdAt: Date.now(),
@@ -241,6 +267,38 @@ export const useMatchStore = create<MatchState>((set, get) => {
     setKeepFrames(keepFrames) {
       set({ settings: { ...get().settings, keepFrames } });
       void saveSetting('keepFrames', keepFrames);
+    },
+
+    async createProfile(name) {
+      // The id comes from the name once, at creation, and never changes again:
+      // renaming someone must not orphan their history.
+      const trimmed = name.trim() || 'Player';
+      const base = trimmed.toLowerCase().replace(/\s+/g, ' ');
+      const taken = new Set(get().profiles.map((profile) => profile.id));
+      let id = base;
+      let suffix = 2;
+      while (taken.has(id)) id = `${base} ${suffix++}`;
+
+      const profile: Profile = { id, name: trimmed, createdAt: Date.now(), lastPlayedAt: null };
+      await putProfile(profile);
+      set({ profiles: [profile, ...get().profiles] });
+      return profile;
+    },
+
+    async renameProfile(id, name) {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const profiles = get().profiles.map((profile) =>
+        profile.id === id ? { ...profile, name: trimmed } : profile,
+      );
+      set({ profiles });
+      const changed = profiles.find((profile) => profile.id === id);
+      if (changed) await putProfile(changed);
+    },
+
+    async removeProfile(id) {
+      await deleteStoredProfile(id);
+      set({ profiles: get().profiles.filter((profile) => profile.id !== id) });
     },
 
     setMode(mode) {

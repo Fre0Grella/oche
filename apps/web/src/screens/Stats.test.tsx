@@ -95,6 +95,46 @@ describe('the statistics page', () => {
     expect(screen.getByText(/tapped on the board rather than read by a camera/i)).toBeDefined();
   });
 
+  it('keeps guests out of the player list', async () => {
+    await act(async () => {
+      useMatchStore.getState().startMatch({
+        ...config,
+        players: [marco, { id: 'guest-abc', name: 'Dave', temporary: true }],
+      });
+      useMatchStore.getState().throwDart(hit(20, 'treble'), { pos: T20 });
+      useMatchStore.getState().throwDart(hit(20, 'treble'), { pos: T20 });
+      useMatchStore.getState().throwDart(hit(20, 'treble'), { pos: T20 });
+      // Dave's turn.
+      useMatchStore.getState().throwDart(hit(5, 'single'));
+    });
+
+    render(<Stats />);
+
+    await waitFor(() => expect(screen.getByText(/3-dart average/i)).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Dave' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Marco' })).toBeDefined();
+  });
+
+  it('shows a renamed profile under its new name', async () => {
+    await act(async () => {
+      await useMatchStore.getState().createProfile('Marco');
+    });
+    const profile = useMatchStore.getState().profiles[0]!;
+    await act(async () => {
+      useMatchStore.getState().startMatch({ ...config, players: [{ id: profile.id, name: 'Marco' }] });
+      useMatchStore.getState().throwDart(hit(20, 'treble'), { pos: T20 });
+    });
+    await act(async () => {
+      await useMatchStore.getState().renameProfile(profile.id, 'Marco G.');
+    });
+
+    render(<Stats />);
+
+    // The match stored "Marco"; the profile now says "Marco G." and wins.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Marco G.' })).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Marco' })).toBeNull();
+  });
+
   it('explains what its contested definitions mean, next to them', async () => {
     await throwDarts(12);
     render(<Stats />);

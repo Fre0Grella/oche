@@ -108,6 +108,9 @@ middle of the board.
 
 ## Presentation rules
 
+- Only profiles are measured. A guest is scored during the match and then
+  forgotten, so an evening with visiting friends does not appear as five new
+  players with one leg each.
 - Every stat shows its sample size. "Checkout 100%" from two darts is noise and
   must look like noise.
 - Classical stats are comparable to other apps; where a definition is contested

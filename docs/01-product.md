@@ -23,6 +23,21 @@ sentence.
 - Bust handling, including the "one dart left, score is 1 with double out" case.
 - Undo of anything, at any point, including a corrected dart.
 
+### Players — profiles and guests
+
+A player is a **profile**: made once with a name, then picked from a list at the
+start of every match. Its id is fixed when the profile is created and never
+derived from the name again, so renaming "marco" to "Marco G." keeps every leg
+he has ever thrown attached to him. Profiles live in IndexedDB on the device,
+sorted by who played most recently, and are renamed or deleted from the same
+screen.
+
+Someone who plays once is a **guest**: added by name for that match only, scored
+exactly like anyone else, and never written to the profile list. Guest darts are
+excluded from the statistics page — the friend who visits in March should not be
+sitting in the player picker in December. Starting a match without picking
+anybody gives a single guest, so a quick solo leg still costs no setup.
+
 ### Scoring input — three sources, one model
 
 1. **Manual**: an interactive dartboard. You press where the dart landed, which
