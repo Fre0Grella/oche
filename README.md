@@ -17,7 +17,7 @@ the spoken caller work today, on a phone or a laptop.
 | | |
 |---|---|
 | **Play** | X01 (301 → 1001), configurable in/out rule (straight / double / triple / master), legs and sets, 1–8 players. |
-| **Score** | Three ways, always interchangeable: tap the board, say it out loud, or let the camera read it. The camera never gets the last word — you do. |
+| **Score** | Three ways, always interchangeable: press the board, say it out loud, or let the camera read it. Pressing raises a magnifying lens offset from your finger, so you can place a dart in a treble on a phone screen. The camera never gets the last word — you do. |
 | **Caller** | The score is spoken, so nobody has to look at the screen. |
 | **Checkout** | What to aim at on every finishable score, following the configured out rule. |
 | **Stats** | The usual ones (3-dart average, first 9, checkout %, darts per leg, tons) plus the ones only a camera can give: where your darts actually land, how tightly they group, which way you miss, and where *you* should be aiming. |
