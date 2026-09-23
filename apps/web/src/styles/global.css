@@ -864,6 +864,63 @@ input {
   color: var(--text);
 }
 
+/* The written pairing code: the way in for a computer with no camera. */
+
+.pair-fallback {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--bg-sunken);
+}
+
+.pair-fallback > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.pair-fallback[open] > summary {
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.pair-code {
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* Big enough to read off one screen and type into another. */
+  font-size: clamp(0.8rem, 3.6vw, 1.05rem);
+  letter-spacing: 0.08em;
+  line-height: 1.7;
+  text-align: center;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--text);
+}
+
+.pair-code-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  line-height: 1.7;
+  text-transform: uppercase;
+  resize: vertical;
+}
+
+.pair-code-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .scanner {
   display: flex;
   flex-direction: column;

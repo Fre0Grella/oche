@@ -122,7 +122,8 @@ data.
 Brought forward because it turned out not to depend on the model at all: the hub
 runs the same vision pipeline over a remote stream as over a local one.
 
-QR pairing in both directions with no server of any kind, WebRTC video plus a
+QR pairing in both directions with no server of any kind (and a written code
+for a computer with no camera), WebRTC video plus a
 control channel, a camera-role screen for the phone, and a landing page and mode
 chooser in front of the whole app. See [05 – Dual device](05-dual-device.md) for
 the measurements.

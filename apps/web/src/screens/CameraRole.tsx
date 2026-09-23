@@ -4,6 +4,10 @@
  * No inference, no scoring, no bright screen. The phone reads the laptop's
  * code, starts its back camera, shows its answer for the laptop to read, and
  * then sits there sending video with the screen dimmed and the wake lock held.
+ *
+ * The answer goes up as a picture *and* as a hundred characters of text, because
+ * a desktop computer often has no camera to read a picture with. The text can be
+ * copied and sent across by any means at hand, or typed.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,6 +16,7 @@ import { QrCode } from '../components/QrCode.js';
 import { QrScanner } from '../components/QrScanner.js';
 import { useStrings } from '../i18n/index.js';
 import { PairingConnection } from '../pairing/session.js';
+import { formatShortCode } from '../pairing/shortcode.js';
 import { useMatchStore } from '../store/match.js';
 import { keepAwake, startCamera, stopCamera } from '../vision/camera.js';
 
@@ -23,6 +28,8 @@ export function CameraRole() {
 
   const [step, setStep] = useState<Step>('scan');
   const [answer, setAnswer] = useState<string | null>(null);
+  const [shortCode, setShortCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [battery, setBattery] = useState<number | null>(null);
 
@@ -51,6 +58,7 @@ export function CameraRole() {
       const joined = await PairingConnection.join(text, media);
       connection.current = joined.connection;
       setAnswer(joined.code);
+      setShortCode(joined.shortCode);
       setStep('answer');
 
       joined.connection.onState = (state) => {
@@ -121,6 +129,31 @@ export function CameraRole() {
           <p className="pair-instruction">{t.camera.showToLaptop}</p>
           <QrCode text={answer} label={t.camera.qrLabel} />
           <p className="hint">{t.camera.waiting}</p>
+
+          {shortCode && (
+            <details className="pair-fallback">
+              <summary>{t.camera.noCameraThere}</summary>
+              <p className="hint">{t.camera.codeHelp}</p>
+              <pre className="pair-code">{formatShortCode(shortCode)}</pre>
+              <div className="controls">
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    // Copying is the point: nobody should have to type this if
+                    // they have any way of sending text to the other machine.
+                    navigator.clipboard
+                      ?.writeText(formatShortCode(shortCode))
+                      .then(() => setCopied('yes'))
+                      .catch(() => setCopied('no'));
+                  }}
+                >
+                  {copied === 'yes' ? t.camera.copied : t.camera.copyCode}
+                </button>
+              </div>
+              {copied === 'no' && <p className="warning">{t.camera.copyFailed}</p>}
+            </details>
+          )}
         </>
       )}
 
@@ -158,7 +191,7 @@ export function CameraRole() {
           className="chip"
           onClick={() => {
             teardown();
-            setScreen('mode');
+            setScreen('pairRole');
           }}
         >
           {step === 'live' ? t.camera.stop : t.camera.back}

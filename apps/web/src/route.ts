@@ -1,7 +1,7 @@
 /**
  * Screens and the address bar, kept in step.
  *
- * Not a router library: there are eight screens and no nested routes. What the
+ * Not a router library: there are ten screens and no nested routes. What the
  * hash buys is a reload that lands you where you were, a back button that does
  * something sensible, and a link the phone can be sent to.
  */
@@ -13,6 +13,7 @@ export type Screen =
   | 'game'
   | 'history'
   | 'capture'
+  | 'pairRole'
   | 'pair'
   | 'camera'
   | 'stats';
@@ -24,6 +25,7 @@ const HASHES: Record<Screen, string> = {
   game: '#/game',
   history: '#/history',
   capture: '#/camera',
+  pairRole: '#/pair-role',
   pair: '#/pair',
   camera: '#/phone',
   stats: '#/stats',

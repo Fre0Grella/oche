@@ -107,17 +107,32 @@ export function SoloModeArt() {
   );
 }
 
-export function PairedModeArt() {
+/**
+ * The same drawing serves the mode chooser and the "which device is this?"
+ * step after it, because they are the same picture answering two questions.
+ * With a `focus`, the device you are holding stays lit and the other one falls
+ * back — the picture then says "this end is you" without a word.
+ */
+export function PairedModeArt({ focus }: { focus?: 'phone' | 'computer' } = {}) {
+  const label =
+    focus === 'phone'
+      ? 'The phone end: a phone filming the board and sending to a laptop'
+      : focus === 'computer'
+        ? 'The computer end: a laptop keeping score on video from a phone'
+        : 'A phone as the camera, sending video to a laptop that keeps score';
+
+  const dim = (side: 'phone' | 'computer') => (focus && focus !== side ? 0.3 : 1);
+
   return (
-    <svg
-      className="mode-art"
-      viewBox="0 0 200 110"
-      role="img"
-      aria-label="A phone as the camera, sending video to a laptop that keeps score"
-    >
-      <Board x={26} y={52} scale={0.72} />
-      <Sightline from={[72, 52]} to={[42, 52]} />
-      <Phone x={82} y={52} rotate={-8} />
+    <svg className="mode-art" viewBox="0 0 200 110" role="img" aria-label={label}>
+      <g opacity={dim('phone')}>
+        <Board x={26} y={52} scale={0.72} />
+        <Sightline from={[72, 52]} to={[42, 52]} />
+        <Phone x={82} y={52} rotate={-8} />
+        <text x={82} y={94} textAnchor="middle" fontSize={9} fill="currentColor" opacity={0.65}>
+          camera
+        </text>
+      </g>
 
       {/* Waves: the phone is sending, the laptop is receiving. */}
       <g className="mode-waves" stroke="var(--accent)" fill="none" strokeLinecap="round" strokeWidth={1.8}>
@@ -127,13 +142,28 @@ export function PairedModeArt() {
         <path className="wave wave-3" d="M114 34 a21 21 0 0 1 0 36" />
       </g>
 
-      <Laptop x={158} y={50} />
-      <text x={82} y={94} textAnchor="middle" fontSize={9} fill="currentColor" opacity={0.65}>
-        camera
-      </text>
-      <text x={158} y={94} textAnchor="middle" fontSize={9} fill="currentColor" opacity={0.65}>
-        score + vision
-      </text>
+      <g opacity={dim('computer')}>
+        <Laptop x={158} y={50} />
+        <text x={158} y={94} textAnchor="middle" fontSize={9} fill="currentColor" opacity={0.65}>
+          score + vision
+        </text>
+      </g>
+
+      {/* A ring round the end you are holding, for anyone who cannot see the
+          difference between 30% and 100% opacity. */}
+      {focus && (
+        <ellipse
+          cx={focus === 'phone' ? 82 : 158}
+          cy={focus === 'phone' ? 50 : 48}
+          rx={focus === 'phone' ? 26 : 46}
+          ry={focus === 'phone' ? 34 : 30}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={1.6}
+          strokeDasharray="4 4"
+          opacity={0.7}
+        />
+      )}
     </svg>
   );
 }

@@ -192,7 +192,6 @@ export const en = {
     title: 'How are you playing?',
     subtitle: 'You can change your mind later — this only decides which device does the work.',
     back: 'Back',
-    joinAsCamera: 'This phone is the camera',
     solo: {
       title: 'One phone',
       body: 'The phone does everything: it watches the board, keeps the score and calls it out.',
@@ -210,13 +209,31 @@ export const en = {
       action: 'Pair two devices',
     },
   },
+
+  role: {
+    title: 'Which device is this one?',
+    subtitle: 'Open oche on both, and tell each one what it is. Start with the computer.',
+    back: 'Back',
+    computer: {
+      title: 'This is the computer',
+      body: 'It keeps the score, watches the video the phone sends, and shows the board a code to scan.',
+      points: ['Shows the scoreboard', 'Does the thinking', 'Set this one up first'],
+      action: "I'm on the computer",
+    },
+    phone: {
+      title: 'This is the phone',
+      body: 'It becomes a camera pointed at the board: it scans the code on the computer and then sends what it sees.',
+      points: ['Scans the code', 'Films the board', 'Screen dims, battery lasts'],
+      action: "I'm on the phone",
+    },
+  },
   pair: {
     title: 'Pair your phone',
-    subtitle: 'Two codes, no accounts, no internet: the phone and this computer introduce themselves by showing each other a picture.',
+    subtitle: 'No accounts, no internet: the phone and this computer introduce themselves by showing each other a code — a picture if this computer has a camera, written-out text if it has not.',
     steps: [
-      'On your phone, open this same site and choose "This phone is the camera".',
+      'On your phone, open this same site and choose "I’m on the phone".',
       'This computer shows a code; point the phone at it.',
-      'The phone then shows a code back; hold it up to this computer’s webcam.',
+      'The phone shows a code back — hold it up to this webcam, or paste the phone’s written code in here.',
     ],
     start: 'Show the pairing code',
     showToPhone: 'Point the phone at this code',
@@ -234,6 +251,12 @@ export const en = {
     back: 'Back',
     backToCode: 'Show the code again',
     qrLabelHub: 'Pairing code for the phone to scan',
+    useScanner: 'Read it with the webcam',
+    useCode: 'Paste the written code',
+    typeTheCode: 'Paste the code from the phone, or type it in',
+    codePlaceholder: 'E421G T5G13 8WGVK BDWCH…',
+    codeCounter: (n: number) => `${n} characters`,
+    codeWaiting: 'it connects by itself when the whole code is here',
   },
   camera: {
     title: 'Camera mode',
@@ -250,6 +273,12 @@ export const en = {
     back: 'Back',
     failed: 'Could not connect to the computer.',
     retry: 'Scan again',
+    noCameraThere: 'No camera on the computer?',
+    codeHelp:
+      'Send it this code instead — copy it and get it across however you like, or type it in by hand. It is only good for this one pairing.',
+    copyCode: 'Copy the code',
+    copied: 'Copied',
+    copyFailed: 'Copying is not allowed here — select the code above and copy it by hand.',
   },
   coach: {
     ready: 'Board found — you can play.',

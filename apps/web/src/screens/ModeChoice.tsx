@@ -9,7 +9,9 @@ export function ModeChoice() {
 
   const choose = (mode: 'solo' | 'paired') => {
     setMode(mode);
-    setScreen(mode === 'solo' ? 'setup' : 'pair');
+    // Two devices means one more question — which one is this? — and it is
+    // asked on its own screen, with pictures, rather than in a link nobody sees.
+    setScreen(mode === 'solo' ? 'setup' : 'pairRole');
   };
 
   return (
@@ -48,9 +50,6 @@ export function ModeChoice() {
       <div className="screen-actions">
         <button type="button" className="chip" onClick={() => setScreen('landing')}>
           {t.mode.back}
-        </button>
-        <button type="button" className="chip" onClick={() => setScreen('camera')}>
-          {t.mode.joinAsCamera}
         </button>
       </div>
     </div>

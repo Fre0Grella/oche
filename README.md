@@ -23,7 +23,7 @@ the spoken caller work today, on a phone or a laptop.
 | **Stats** | The usual ones (3-dart average, first 9, checkout %, darts per leg, bands, per-double table, session trend) plus the ones that need positions: a heatmap of where your darts land, how tightly they group along and across the sector, what happens when you go at your number, and — from your own spread — **where you should actually aim**, which for most players is not the treble 20. |
 | **Camera setup** | Point the phone at your board and the app tells you what to fix — cut off, too dark, too straight on, camera moved — then you mark the four board points once. |
 | **Try it** | Throw a dart, tap it in the photograph, hear the score called back. If it is right, the camera is set up properly — and that throw is one labelled training sample. In a game, the same thing happens per visit: **Mark where they landed** corrects the score and files the example. All of it stays on your device until you export it. |
-| **Two device modes** | **Solo:** the phone does everything. **Paired:** the phone is only a camera and a laptop does the rest. Pairing is two QR codes and no server at all — the video goes straight between the devices and never leaves your network, so it works on a hotspot with no internet. |
+| **Two device modes** | **Solo:** the phone does everything. **Paired:** the phone is only a camera and a laptop does the rest. Pairing is two QR codes and no server at all — or, for a computer with no camera, a 103-character code the phone offers to copy. The video goes straight between the devices and never leaves your network, so it works on a hotspot with no internet. |
 
 Offline-first: it's a PWA, all game data lives on your device, and there is no
 account to create.
