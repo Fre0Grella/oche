@@ -32,11 +32,18 @@ he has ever thrown attached to him. Profiles live in IndexedDB on the device,
 sorted by who played most recently, and are renamed or deleted from the same
 screen.
 
-Someone who plays once is a **guest**: added by name for that match only, scored
-exactly like anyone else, and never written to the profile list. Guest darts are
-excluded from the statistics page — the friend who visits in March should not be
-sitting in the player picker in December. Starting a match without picking
-anybody gives a single guest, so a quick solo leg still costs no setup.
+Someone who plays once is a **guest**: named once and then pickable for the rest
+of the session exactly like anybody else, so a second leg with the same friend
+costs one tap rather than retyping their name. A guest is scored normally and is
+never written to the profile list; guest darts are excluded from the statistics
+page, because the friend who visits in March should not be sitting in the player
+picker in December. Closing the tab is what ends a guest. Starting a match
+without picking anybody gives a single guest, so a quick solo leg still costs no
+setup.
+
+Matches played before profiles existed are not lost: their player ids were
+derived from the typed name by the same rule `createProfile` uses, so on first
+load the profile list is seeded from the matches already on the device, once.
 
 ### Scoring input — three sources, one model
 

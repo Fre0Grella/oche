@@ -6,9 +6,10 @@
  * as the statistics are concerned. A profile's id is fixed when it is made, so
  * renaming one keeps its history.
  *
- * A friend who plays once is a **guest**: scored exactly like anyone else for
- * the length of the match, then gone. Guests are never written to the profile
- * list and never appear in the statistics, so the picker stays short.
+ * A friend who plays once is a **guest**: named once, pickable for the rest of
+ * the session like anybody else, and gone when the tab closes. Guests are never
+ * written to the profile list and never appear in the statistics, so the picker
+ * stays short.
  */
 
 import type { InOutRule, PlayerConfig, X01Config } from '@oche/core';
@@ -30,12 +31,21 @@ export function Setup() {
   const createProfile = useMatchStore((s) => s.createProfile);
   const renameProfile = useMatchStore((s) => s.renameProfile);
   const removeProfile = useMatchStore((s) => s.removeProfile);
+  const sessionGuests = useMatchStore((s) => s.sessionGuests);
+  const addSessionGuest = useMatchStore((s) => s.addSessionGuest);
+  const removeSessionGuest = useMatchStore((s) => s.removeSessionGuest);
 
   /** Who is throwing, in order. Profiles and guests look the same here. */
   const [lineup, setLineup] = useState<PlayerConfig[]>([]);
   const [adding, setAdding] = useState<'profile' | 'guest' | null>(null);
   const [draftName, setDraftName] = useState('');
   const [managing, setManaging] = useState(false);
+  /**
+   * Names being typed in manage mode. The field cannot write straight through
+   * to the profile: the store trims, so a trailing space would be swallowed and
+   * "Marco G." could never be typed at all.
+   */
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const [startScore, setStartScore] = useState(501);
   const [inRule, setInRule] = useState<InOutRule>('straight');
@@ -50,18 +60,20 @@ export function Setup() {
     setLineup((current) => [...current, { id, name }]);
   };
 
+  const addToLineup = (player: PlayerConfig) => {
+    if (inLineup(player.id) || lineup.length >= MAX_PLAYERS) return;
+    setLineup((current) => [...current, player]);
+  };
+
   const addGuest = (name: string) => {
     if (lineup.length >= MAX_PLAYERS) return;
-    // A guest gets an id of their own, so two guests in one match stay apart,
-    // and it is never written to the profile list.
-    const id = `guest-${Math.random().toString(36).slice(2, 8)}`;
-    setLineup((current) => [...current, { id, name: name.trim() || t.setup.guest, temporary: true }]);
+    addToLineup(addSessionGuest(name.trim() || t.setup.guest));
   };
 
   const submitDraft = async () => {
     if (adding === 'profile') {
       const profile = await createProfile(draftName);
-      addProfile(profile.id, profile.name);
+      addToLineup({ id: profile.id, name: profile.name });
     } else if (adding === 'guest') {
       addGuest(draftName);
     }
@@ -69,10 +81,24 @@ export function Setup() {
     setAdding(null);
   };
 
+  const commitDraft = (id: string) => {
+    const draft = drafts[id];
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    if (draft !== undefined) void renameProfile(id, draft);
+  };
+
   const start = () => {
     // Playing alone without making a profile first is allowed: it is a guest.
+    const named = lineup.map((player) => {
+      const profile = profiles.find((candidate) => candidate.id === player.id);
+      return profile ? { ...player, name: profile.name } : player;
+    });
     const players =
-      lineup.length > 0 ? lineup : [{ id: 'guest-solo', name: t.setup.guest, temporary: true }];
+      named.length > 0 ? named : [{ id: 'guest-solo', name: t.setup.guest, temporary: true }];
     const config: X01Config = { startScore, inRule, outRule, legsPerSet, setsToWin, players };
     startMatch(config);
   };
@@ -124,6 +150,14 @@ export function Setup() {
                 + {profile.name}
               </button>
             ))}
+          {sessionGuests
+            .filter((guest) => !inLineup(guest.id))
+            .map((guest) => (
+              <button key={guest.id} type="button" className="chip" onClick={() => addToLineup(guest)}>
+                + {guest.name}
+                <small>{t.setup.guestTag}</small>
+              </button>
+            ))}
           <button type="button" className="chip" onClick={() => setAdding('profile')}>
             {t.setup.newProfile}
           </button>
@@ -162,7 +196,7 @@ export function Setup() {
 
         <p className="hint">{adding === 'guest' ? t.setup.guestHelp : t.setup.profileHelp}</p>
 
-        {profiles.length > 0 && (
+        {(profiles.length > 0 || sessionGuests.length > 0) && (
           <>
             <button type="button" className="chip" onClick={() => setManaging((on) => !on)}>
               {managing ? t.setup.doneManaging : t.setup.manageProfiles}
@@ -175,8 +209,14 @@ export function Setup() {
                     <li key={profile.id}>
                       <input
                         aria-label={`${t.setup.playerName} ${profile.name}`}
-                        value={profile.name}
-                        onChange={(event) => void renameProfile(profile.id, event.target.value)}
+                        value={drafts[profile.id] ?? profile.name}
+                        onChange={(event) =>
+                          setDrafts((current) => ({ ...current, [profile.id]: event.target.value }))
+                        }
+                        onBlur={() => commitDraft(profile.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') event.currentTarget.blur();
+                        }}
                       />
                       <button
                         type="button"
@@ -184,6 +224,24 @@ export function Setup() {
                         onClick={() => {
                           void removeProfile(profile.id);
                           setLineup((current) => current.filter((p) => p.id !== profile.id));
+                        }}
+                      >
+                        {t.setup.deleteProfile}
+                      </button>
+                    </li>
+                  ))}
+                  {sessionGuests.map((guest) => (
+                    <li key={guest.id}>
+                      <span className="lineup-name">
+                        {guest.name}
+                        <small>{t.setup.guestTag}</small>
+                      </span>
+                      <button
+                        type="button"
+                        className="chip"
+                        onClick={() => {
+                          removeSessionGuest(guest.id);
+                          setLineup((current) => current.filter((p) => p.id !== guest.id));
                         }}
                       >
                         {t.setup.deleteProfile}

@@ -85,6 +85,12 @@ export interface Settings {
   keepFrames: boolean;
   /** The last calibration, so a session survives a reload. */
   calibration: Calibration | null;
+  /**
+   * Whether the profile list has been seeded from matches played before
+   * profiles existed. It is a one-shot: without it, deleting every profile on
+   * purpose would bring them all back on the next load.
+   */
+  profilesSeeded: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -93,4 +99,5 @@ export const DEFAULT_SETTINGS: Settings = {
   locale: 'en',
   keepFrames: false,
   calibration: null,
+  profilesSeeded: false,
 };

@@ -13,6 +13,7 @@ import {
   type Hit,
   type MatchEvent,
   type MatchSnapshot,
+  type PlayerConfig,
   type Point,
   type X01Config,
 } from '@oche/core';
@@ -59,6 +60,12 @@ interface MatchState {
   history: StoredMatch[];
 
   profiles: Profile[];
+  /**
+   * Guests added during this session. They are people, for as long as the tab
+   * is open — added once and then pickable again for the next leg — but they
+   * are never written to IndexedDB and never reach the statistics.
+   */
+  sessionGuests: PlayerConfig[];
   mode: PlayMode;
   /** The paired phone, when there is one. Never persisted: it is a live socket. */
   pairing: PairingConnection | null;
@@ -82,6 +89,8 @@ interface MatchState {
   setKeepFrames: (on: boolean) => void;
 
   createProfile: (name: string) => Promise<Profile>;
+  addSessionGuest: (name: string) => PlayerConfig;
+  removeSessionGuest: (id: string) => void;
   renameProfile: (id: string, name: string) => Promise<void>;
   removeProfile: (id: string) => Promise<void>;
   setMode: (mode: PlayMode) => void;
@@ -127,6 +136,7 @@ export const useMatchStore = create<MatchState>((set, get) => {
     snapshot: null,
     history: [],
     profiles: [],
+    sessionGuests: [],
     mode: 'solo',
     pairing: null,
     remoteStream: null,
@@ -139,6 +149,42 @@ export const useMatchStore = create<MatchState>((set, get) => {
       ]);
       const unfinished = matches.find((m) => !m.finished && m.events.length > 0);
 
+      // Before profiles existed, a player's id was derived from their name at
+      // the start of every match — the same derivation `createProfile` still
+      // uses. So the matches already on this device name their players, and a
+      // returning player should find their history waiting rather than a list
+      // that has forgotten them.
+      let seeded = profiles;
+      if (!settings.profilesSeeded) {
+        const found = new Map<string, Profile>();
+        for (const match of matches) {
+          const at = match.updatedAt;
+          for (const player of match.config.players) {
+            if (player.temporary) continue;
+            const known = found.get(player.id) ?? profiles.find((p) => p.id === player.id);
+            if (known) {
+              found.set(player.id, { ...known, lastPlayedAt: Math.max(known.lastPlayedAt ?? 0, at) });
+              continue;
+            }
+            found.set(player.id, {
+              id: player.id,
+              name: player.name,
+              createdAt: match.createdAt,
+              lastPlayedAt: at,
+            });
+          }
+        }
+        const fresh = [...found.values()].filter((p) => !profiles.some((known) => known.id === p.id));
+        if (fresh.length > 0) {
+          await Promise.all(fresh.map((profile) => putProfile(profile)));
+          seeded = [...fresh, ...profiles].sort(
+            (a, b) => (b.lastPlayedAt ?? b.createdAt) - (a.lastPlayedAt ?? a.createdAt),
+          );
+        }
+        void saveSetting('profilesSeeded', true);
+        settings.profilesSeeded = true;
+      }
+
       // A match in progress is resumed, but the landing page still comes first
       // unless the address says otherwise: arriving at oche should explain what
       // it is before it drops you into someone else's half-finished leg.
@@ -147,7 +193,7 @@ export const useMatchStore = create<MatchState>((set, get) => {
         ready: true,
         settings,
         history: matches,
-        profiles,
+        profiles: seeded,
         match: unfinished ?? null,
         snapshot: unfinished ? reduceMatch(unfinished.config, unfinished.events) : null,
         screen: resolved === 'game' && !unfinished ? 'setup' : resolved,
@@ -283,6 +329,22 @@ export const useMatchStore = create<MatchState>((set, get) => {
       await putProfile(profile);
       set({ profiles: [profile, ...get().profiles] });
       return profile;
+    },
+
+    addSessionGuest(name) {
+      // A guest keeps an id of their own so two guests in one match stay apart,
+      // and `temporary` keeps them out of the statistics for good.
+      const guest: PlayerConfig = {
+        id: `guest-${Math.random().toString(36).slice(2, 8)}`,
+        name: name.trim() || 'Guest',
+        temporary: true,
+      };
+      set({ sessionGuests: [...get().sessionGuests, guest] });
+      return guest;
+    },
+
+    removeSessionGuest(id) {
+      set({ sessionGuests: get().sessionGuests.filter((guest) => guest.id !== id) });
     },
 
     async renameProfile(id, name) {
