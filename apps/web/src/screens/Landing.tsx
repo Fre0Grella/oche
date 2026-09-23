@@ -27,6 +27,9 @@ export function Landing() {
         >
           {t.landing.cta}
         </button>
+        <button type="button" className="chip" onClick={() => setScreen('stats')}>
+          {t.stats.title}
+        </button>
       </div>
 
       <ul className="landing-points">

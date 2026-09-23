@@ -60,9 +60,14 @@ screen for frames already labelled.
 
 > From here, data collection runs in parallel with everything below.
 
-### A5. Statistics
-The classical tier in full, the positional tier for what tapped positions
-support. Board heatmap, per-double table, trends, per-session view, export.
+### A5. Statistics — done
+The classical tier in full (average, first nine, checkout percentage, darts per
+leg, bands, doubles table, session trend) and the positional tier: heatmap,
+grouping split into along and across the sector, what happens when you go at
+your number, and the aiming map from the Tibshirani paper.
+
+**Outstanding**: wire rate, rhythm from timestamps, pressure and fatigue splits,
+and an export of the numbers themselves.
 
 ### A6. Voice scoring
 Grammar + parser in core, Web Speech adapter with contextual biasing, push-to-talk

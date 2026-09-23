@@ -315,6 +315,74 @@ export const en = {
     cameraOff: 'Camera off',
     scoreChanged: 'Score corrected to {score}',
   },
+  stats: {
+    title: 'Statistics',
+    subtitle: '{matches} matches, {darts} darts.',
+    empty: 'Play a leg and this fills up. Every dart you enter is counted, and every one you place on the board is measured.',
+    nothingInRange: 'Nothing thrown in this period.',
+    back: 'Back',
+    ranges: {
+      session: 'Today',
+      month: 'Last 30 days',
+      all: 'All time',
+    },
+
+    scoring: 'Scoring',
+    average: '3-dart average',
+    averageNote:
+      'Points scored ÷ darts thrown × 3, over whole legs. Darts in a busted visit count, and the bust scores nothing — the standard definition, and why a bust hurts twice.',
+    first9: 'First 9',
+    first9Note: 'The same average over the first three visits of each leg: scoring power, separated from finishing.',
+    checkout: 'Checkout',
+    checkoutNote:
+      'Doubles hit ÷ darts thrown at a double, where a dart counts as at a double when one dart could have closed the leg from the score in front of it.',
+    dartsPerLeg: 'Darts per leg',
+    dartsPerLegNote: 'Counted over legs won, because a leg you lost has no length.',
+    fromDarts: 'from {n} darts',
+    fromLegs: 'over {n} legs',
+    ofAttempts: '{hits} of {n}',
+    legsWon: '{n} legs won',
+    bestLeg: 'Best leg',
+    highestOut: 'Highest out',
+    tons: '100+',
+    bestVisit: 'Best visit',
+    busts: 'Busts',
+
+    form: 'Form',
+    careerAverage: 'average',
+    formNote: 'One point per session, oldest first. {n} sessions so far.',
+
+    shape: 'Shape of your scoring',
+
+    doubles: 'Doubles',
+    noDoubles: 'No darts at a double yet.',
+    doublesSummary: 'Best: {best} at {bestPercent}%. Weakest: {worst} at {worstPercent}%.',
+    doublesNote:
+      'Which double a dart was aimed at is taken from the score in front of you — 32 means D16. Only doubles with at least five darts are called best or weakest.',
+    bull: 'Bull',
+
+    where: 'Where your darts land',
+    whereLabel: 'Heatmap of where the darts landed',
+    fewer: 'fewer',
+    more: 'more',
+    groupSentence:
+      'Your group measures about {along} mm up and down the sector and {across} mm across it, over {n} darts.',
+    goingAt: 'When you go at the {sector}',
+    offBoard: 'Off the board',
+    tappedNote:
+      '{n} of these positions were tapped on the board rather than read by a camera, so they are as precise as your thumb was.',
+
+    aim: 'Where you should aim',
+    aimLabel: 'Expected score for every aiming point',
+    perDart: '{max} per dart',
+    aimSentenceSame:
+      'With a spread like yours the treble 20 is still the right place to aim: {expected} points a dart, which is {average} for three.',
+    aimSentenceOther:
+      'With a spread like yours, aim at {target} instead: {expected} points a dart against {treble} at the treble 20 — {gain} more every dart, or {perThree} a visit.',
+    aimNote:
+      'From Tibshirani, Price & Taylor, “A statistician plays darts” (2011): a throw is a Gaussian around where you aimed, so the expected score of aiming anywhere is the board convolved with your own spread. The spread is estimated from the darts you threw at your most-used number, assuming that is what you were going at.',
+    aimPending: 'Needs {need} darts with a position; there are {have}. Keep tapping the board where they land.',
+  },
   history: {
     title: 'Past matches',
     empty: 'No matches yet.',

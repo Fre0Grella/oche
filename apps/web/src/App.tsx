@@ -8,6 +8,7 @@ import { Landing } from './screens/Landing.js';
 import { ModeChoice } from './screens/ModeChoice.js';
 import { PairHub } from './screens/PairHub.js';
 import { Setup } from './screens/Setup.js';
+import { Stats } from './screens/Stats.js';
 import { setLocale } from './i18n/index.js';
 import { hashForScreen, screenFromHash } from './route.js';
 import { useMatchStore } from './store/match.js';
@@ -64,6 +65,8 @@ export function App() {
       return <History />;
     case 'capture':
       return <Capture />;
+    case 'stats':
+      return <Stats />;
     default:
       return <Setup />;
   }

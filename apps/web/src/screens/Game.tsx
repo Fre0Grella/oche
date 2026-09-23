@@ -125,6 +125,9 @@ export function Game() {
         >
           {settings.entryMode === 'board' ? t.game.keypad : t.game.board}
         </button>
+        <button type="button" className="chip" onClick={() => setScreen('stats')}>
+          {t.stats.title}
+        </button>
         <button type="button" className="chip" onClick={() => setScreen('setup')}>
           {t.game.newMatch}
         </button>

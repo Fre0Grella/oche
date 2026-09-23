@@ -80,6 +80,8 @@ export interface Dart {
   original?: { hit: Hit; pos?: Point; source: DartSource; confidence?: number };
   /** Score credited: 0 when the dart busted the visit or the player was not in. */
   scored: number;
+  /** What the player was left on when they threw it. */
+  remainingBefore: number;
   /** True when the dart was thrown at a score one dart could have closed. */
   atFinish: boolean;
   /** True when this dart closed the leg. */
@@ -244,6 +246,7 @@ export function reduceMatch(config: X01Config, events: readonly MatchEvent[]): M
       hit: reading.hit,
       source: reading.source,
       scored: 0,
+      remainingBefore: before,
       atFinish: leg.open[playerId] === true && isFinishableWithOneDart(before, config.outRule),
       won: false,
     };
