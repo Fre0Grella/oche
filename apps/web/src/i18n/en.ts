@@ -1,3 +1,5 @@
+import type { Hit } from '@oche/core';
+
 /**
  * English strings, including the caller's vocabulary.
  *
@@ -123,6 +125,23 @@ export const en = {
     matchShot: 'Game, set and match!',
     toThrow: (name: string) => `${name} to throw`,
     correction: (total: number) => `Correction, ${numberToWords(total)}`,
+    /** A single dart, the way a caller names one. */
+    hit: (h: Hit): string => {
+      switch (h.ring) {
+        case 'miss':
+          return 'No score';
+        case 'bull':
+          return 'Bullseye';
+        case 'outerBull':
+          return 'Twenty-five';
+        case 'treble':
+          return `Treble ${numberToWords(h.sector)}`;
+        case 'double':
+          return `Double ${numberToWords(h.sector)}`;
+        default:
+          return numberToWords(h.sector);
+      }
+    },
   },
   landing: {
     lede: 'Darts, scored properly. Tap the board or let the camera read it, hear the score called out, and get the statistics that only come from knowing where every dart landed.',
@@ -243,10 +262,20 @@ export const en = {
   capture: {
     title: 'Camera setup',
     subtitle: 'Set the camera up once here. After that it works during a normal game.',
+    trySubtitle: 'Throw a dart. I photograph the board, you tap the dart, and I call the score back — and that throw becomes a training sample.',
+    tryIt: 'Try it — throw some darts',
+    tryHelp:
+      'If the score I call back is wrong, the camera is not where the app thinks it is: go back and find the board again. Every dart you mark is saved as a labelled photograph, which is what the autoscorer will be trained on.',
+    throwOne: 'Throw a dart — I am watching the board',
+    tapTheDart: 'Got it. Tap the dart in the picture',
+    tapAnother: 'Saved. Tap another if two went in',
+    markedCount: '{n} marked this session',
+    undo: 'Undo that one',
+    doneTrying: 'Done',
     steps: [
       'Stand the phone about a metre from the board, a little off to one side — not straight on, so the darts stick out towards the camera.',
       'Start the camera, tap "Find the board" and drag the four markers onto the outer edge of the double ring. The green board is drawn from your markers: nudge until it sits on the real wires.',
-      'Go back and play. With the camera on, every throw is photographed and you mark where the darts landed — one tap each, at the end of the visit.',
+      'Tap "Try it" and throw a few darts. Tap each one in the photograph and the app calls the score back: if it is right, the camera is set up properly — and each dart you mark is one labelled training sample.',
     ],
     stepsTitle: 'Three steps, once',
     start: 'Start camera',
@@ -270,20 +299,12 @@ export const en = {
     landmarkHintRight: 'Outer edge of the double, centre of the 6',
     landmarkHintBottom: 'Outer edge of the double, centre of the 3',
     landmarkHintLeft: 'Outer edge of the double, centre of the 11',
-    autoCapture: 'Capture on settle',
     captureNow: 'Photograph now',
     practice: 'Practice capture',
     practiceHelp: 'Throwing without a game? Photograph and label here. During a game this happens for you.',
     waiting: 'Watching the board',
     moving: 'Movement',
     captured: 'Captured',
-    label: 'Mark the darts',
-    labelHelp: 'Tap each dart tip. Drag to adjust. The score is read from where you put it.',
-    labelSave: 'Save labels',
-    labelSkip: 'Skip',
-    labelDelete: 'Delete frame',
-    labelEmpty: 'No darts in this frame',
-    queue: '{n} to label',
     noCalibration: 'Calibrate first, so a tap on the photo means something.',
     noCamera: 'This browser will not give the page a camera. On iOS that means Safari, and the page must be served over HTTPS.',
     frames: 'Frames',

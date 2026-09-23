@@ -52,6 +52,10 @@ dart actually landed. That corrects the score *and* files a labelled example —
 which is exactly the flywheel the autoscorer needs, working before the
 autoscorer exists.
 
+The labelling loop was rebuilt after first contact with a user: a queue of
+frames to mark up later became "throw a dart, tap it, hear the score", which is
+both the setup check and the data collection.
+
 **Outstanding**: the automatic trigger's thresholds have not been set against a
 real board — the app shows the two numbers it measures so the first session can
 set them, and "Capture now" works regardless. Also model-assisted pre-labelling
