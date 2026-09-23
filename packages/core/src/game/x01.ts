@@ -22,6 +22,12 @@ export type DartSource = 'manual' | 'voice' | 'auto';
 export interface PlayerConfig {
   id: string;
   name: string;
+  /**
+   * A guest: someone playing once. Their darts are scored exactly like anyone
+   * else's, but they are not a profile and their statistics are not kept, so a
+   * friend who visits in March does not sit in the player list in December.
+   */
+  temporary?: boolean;
 }
 
 export interface X01Config {

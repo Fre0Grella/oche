@@ -61,6 +61,7 @@ export function Stats() {
   const setScreen = useMatchStore((s) => s.setScreen);
   const history = useMatchStore((s) => s.history);
   const refreshHistory = useMatchStore((s) => s.refreshHistory);
+  const profiles = useMatchStore((s) => s.profiles);
 
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [range, setRange] = useState<Range>('all');
@@ -78,13 +79,20 @@ export function Stats() {
     const seen = new Map<string, { id: string; name: string; darts: number }>();
     for (const snapshot of snapshots) {
       for (const player of snapshot.config.players) {
-        const entry = seen.get(player.id) ?? { id: player.id, name: player.name, darts: 0 };
+        // Guests are scored like anyone else and then forgotten: they are here
+        // to play, not to be measured, and they would fill this list up.
+        if (player.temporary) continue;
+        // The profile's current name wins over the one stored with the match:
+        // a rename is meant to be visible everywhere, not only from now on.
+        const name = profiles.find((profile) => profile.id === player.id)?.name ?? player.name;
+        const entry = seen.get(player.id) ?? { id: player.id, name, darts: 0 };
+        entry.name = name;
         entry.darts += snapshot.legs.reduce((sum, leg) => sum + (leg.dartsThrown[player.id] ?? 0), 0);
         seen.set(player.id, entry);
       }
     }
     return [...seen.values()].sort((a, b) => b.darts - a.darts);
-  }, [snapshots]);
+  }, [snapshots, profiles]);
 
   const active = playerId ?? players[0]?.id ?? null;
 

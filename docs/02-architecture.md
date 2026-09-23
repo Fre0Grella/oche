@@ -101,6 +101,7 @@ window or blocked site data degrades to "this session only" instead of crashing:
 |---|---|---|
 | `matches` | One record per match: its config and its whole event log. A match is ~100 darts × ~200 B, so rewriting the record per dart is cheaper than the complexity of a separate event store | a year of heavy play is a few MB |
 | `settings` | Caller on/off, entry mode, locale | trivial |
+| `profiles` | The players who live here: id, name, when it was made, when it last played. A guest is never written here | one row per person, forever |
 | `frames` | Captured frames with their labels and the calibration they were taken under | ~50–150 KB/frame JPEG; automatic capture pauses at 40 unlabelled frames, and everything is explicitly exportable and deletable |
 
 Nothing is stored that is derivable: no scores, no averages, no snapshots. That

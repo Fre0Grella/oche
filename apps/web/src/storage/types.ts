@@ -68,6 +68,15 @@ export interface CapturedFrame {
   note?: string;
 }
 
+export interface Profile {
+  /** Derived from the name when the profile is made, and then never changed —
+   *  renaming a profile keeps its history. */
+  id: string;
+  name: string;
+  createdAt: number;
+  lastPlayedAt: number | null;
+}
+
 export interface Settings {
   callerEnabled: boolean;
   entryMode: 'board' | 'keypad';

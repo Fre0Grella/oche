@@ -1,5 +1,5 @@
 import { hit } from '@oche/core';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -36,6 +36,18 @@ describe('the app', () => {
     await waitFor(() => expect(useMatchStore.getState().screen).toBe('setup'));
     expect(useMatchStore.getState().mode).toBe('solo');
 
+    // A profile, which keeps its statistics…
+    await press(/new profile/i);
+    fireEvent.change(screen.getByLabelText(/new profile/i), { target: { value: 'Marco' } });
+    await press(/^create$/i);
+
+    // …and a guest, who does not.
+    await press(/\+ guest/i);
+    await press(/add for this match/i);
+
+    expect(screen.getByText(/marco/i)).toBeDefined();
+    expect(useMatchStore.getState().profiles.map((profile) => profile.id)).toEqual(['marco']);
+
     await press(/start match/i);
     await waitFor(() => expect(useMatchStore.getState().screen).toBe('game'));
     expect(screen.getAllByText('501')).toHaveLength(2);
@@ -47,7 +59,8 @@ describe('the app', () => {
     });
 
     expect(screen.getByText('321')).toBeDefined();
-    expect(screen.getByText(/Player 2 to throw/)).toBeDefined();
+    // The throw passes to the guest, who is named on the scoreboard like anyone.
+    expect(screen.getByText(/guest to throw/i)).toBeDefined();
   });
 
   it('offers the pairing route from the same chooser', async () => {

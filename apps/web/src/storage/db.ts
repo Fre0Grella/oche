@@ -9,10 +9,16 @@
 
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
-import { DEFAULT_SETTINGS, type CapturedFrame, type Settings, type StoredMatch } from './types.js';
+import {
+  DEFAULT_SETTINGS,
+  type CapturedFrame,
+  type Profile,
+  type Settings,
+  type StoredMatch,
+} from './types.js';
 
 export { DEFAULT_SETTINGS };
-export type { CapturedFrame, Settings, StoredMatch } from './types.js';
+export type { CapturedFrame, Profile, Settings, StoredMatch } from './types.js';
 
 interface OcheDB extends DBSchema {
   matches: {
@@ -29,10 +35,14 @@ interface OcheDB extends DBSchema {
     key: string;
     value: unknown;
   };
+  profiles: {
+    key: string;
+    value: Profile;
+  };
 }
 
 const DB_NAME = 'oche';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<OcheDB>> | null = null;
 
@@ -40,6 +50,7 @@ let dbPromise: Promise<IDBPDatabase<OcheDB>> | null = null;
 const memory = {
   matches: new Map<string, StoredMatch>(),
   settings: new Map<string, unknown>(),
+  profiles: new Map<string, Profile>(),
 };
 
 function hasIndexedDB(): boolean {
@@ -59,6 +70,9 @@ async function db(): Promise<IDBPDatabase<OcheDB> | null> {
         if (oldVersion < 2) {
           const frames = database.createObjectStore('frames', { keyPath: 'id' });
           frames.createIndex('by-ts', 'ts');
+        }
+        if (oldVersion < 3) {
+          database.createObjectStore('profiles', { keyPath: 'id' });
         }
       },
     });
@@ -137,6 +151,30 @@ export async function saveSetting<K extends keyof Settings>(key: K, value: Setti
     return;
   }
   await database.put('settings', value, key);
+}
+
+export async function listProfiles(): Promise<Profile[]> {
+  const database = await db();
+  const all = database ? await database.getAll('profiles') : [...memory.profiles.values()];
+  return all.sort((a, b) => (b.lastPlayedAt ?? b.createdAt) - (a.lastPlayedAt ?? a.createdAt));
+}
+
+export async function putProfile(profile: Profile): Promise<void> {
+  const database = await db();
+  if (!database) {
+    memory.profiles.set(profile.id, profile);
+    return;
+  }
+  await database.put('profiles', profile);
+}
+
+export async function deleteProfile(id: string): Promise<void> {
+  const database = await db();
+  if (!database) {
+    memory.profiles.delete(id);
+    return;
+  }
+  await database.delete('profiles', id);
 }
 
 /** How much room the browser is giving us, for the capture lab's warning. */
