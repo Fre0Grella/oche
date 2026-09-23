@@ -13,6 +13,7 @@
  */
 
 import { encodePayload, decodePayload, expectRole, type PairingRole } from './payload.js';
+import { encodeShortCode, decodeShortCode, readAnswer, rebuildAnswer } from './shortcode.js';
 
 export type PairState = 'new' | 'waiting' | 'connecting' | 'connected' | 'failed' | 'closed';
 
@@ -83,6 +84,12 @@ export class PairingConnection {
   readonly pc: RTCPeerConnection;
   private channel: RTCDataChannel | null = null;
   private currentState: PairState = 'new';
+  /**
+   * The offer this side made, kept because the typed pairing code is not a
+   * whole answer: it is the handful of things the offer cannot predict, and the
+   * rest is rebuilt from here.
+   */
+  private offerSdp: string | null = null;
 
   onState: ((state: PairState) => void) | null = null;
   onStream: ((stream: MediaStream) => void) | null = null;
@@ -158,27 +165,44 @@ export class PairingConnection {
     await waitForIce(connection.pc);
     connection.setState('waiting');
 
-    const code = await encodePayload({
-      v: 1,
-      role: 'hub',
-      sdp: connection.pc.localDescription?.sdp ?? offer.sdp ?? '',
-    });
+    connection.offerSdp = connection.pc.localDescription?.sdp ?? offer.sdp ?? '';
+    const code = await encodePayload({ v: 1, role: 'hub', sdp: connection.offerSdp });
     return { connection, code };
   }
 
-  /** The laptop's side: take the phone's answer and connect. */
+  /**
+   * The laptop's side: take the phone's answer and connect.
+   *
+   * Either kind of code is welcome — the long one a webcam read off the phone's
+   * screen, or the short one somebody typed or pasted — because by the time it
+   * gets here they say the same thing.
+   */
   async accept(code: string): Promise<void> {
+    const trimmed = code.trim();
+    const sdp = trimmed.startsWith('oche1.')
+      ? await this.answerFromPayload(trimmed)
+      : this.answerFromShortCode(trimmed);
+
+    this.setState('connecting');
+    await this.pc.setRemoteDescription({ type: 'answer', sdp });
+  }
+
+  private async answerFromPayload(code: string): Promise<string> {
     const payload = await decodePayload(code);
     expectRole(payload, 'camera');
-    this.setState('connecting');
-    await this.pc.setRemoteDescription({ type: 'answer', sdp: payload.sdp });
+    return payload.sdp;
+  }
+
+  private answerFromShortCode(code: string): string {
+    if (!this.offerSdp) throw new Error('this side never made an offer to answer');
+    return rebuildAnswer(this.offerSdp, decodeShortCode(code));
   }
 
   /** The phone's side: read the laptop's offer, send video, answer. */
   static async join(
     code: string,
     stream: MediaStream,
-  ): Promise<{ connection: PairingConnection; code: string }> {
+  ): Promise<{ connection: PairingConnection; code: string; shortCode: string }> {
     const payload = await decodePayload(code);
     expectRole(payload, 'hub');
 
@@ -201,11 +225,10 @@ export class PairingConnection {
     await connection.pc.setLocalDescription(answer);
     await waitForIce(connection.pc);
 
-    const answerCode = await encodePayload({
-      v: 1,
-      role: 'camera',
-      sdp: connection.pc.localDescription?.sdp ?? answer.sdp ?? '',
-    });
-    return { connection, code: answerCode };
+    const answerSdp = connection.pc.localDescription?.sdp ?? answer.sdp ?? '';
+    const answerCode = await encodePayload({ v: 1, role: 'camera', sdp: answerSdp });
+    // Both forms, always: the phone cannot know whether the computer across the
+    // room has a camera to read the picture with.
+    return { connection, code: answerCode, shortCode: encodeShortCode(readAnswer(answerSdp)) };
   }
 }

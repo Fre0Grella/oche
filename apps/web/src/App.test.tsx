@@ -72,8 +72,21 @@ describe('the app', () => {
     await waitFor(() => expect(useMatchStore.getState().screen).toBe('mode'));
 
     await press(/pair two devices/i);
+    // Which device is this? — asked with the same illustrated cards, not a
+    // small link under the chooser.
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('pairRole'));
+    expect(screen.getByLabelText(/the computer end/i)).toBeDefined();
+    expect(screen.getByLabelText(/the phone end/i)).toBeDefined();
+
+    await press(/i'm on the phone/i);
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('camera'));
+
+    // Back to the pair of cards, and the other one goes to the scoreboard side.
+    await press(/back/i);
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('pairRole'));
+    await press(/i'm on the computer/i);
     await waitFor(() => expect(useMatchStore.getState().screen).toBe('pair'));
     expect(useMatchStore.getState().mode).toBe('paired');
-    expect(screen.getByText(/two codes, no accounts, no internet/i)).toBeDefined();
+    expect(screen.getByText(/no accounts, no internet/i)).toBeDefined();
   });
 });

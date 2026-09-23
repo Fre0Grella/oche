@@ -7,6 +7,7 @@ import { History } from './screens/History.js';
 import { Landing } from './screens/Landing.js';
 import { ModeChoice } from './screens/ModeChoice.js';
 import { PairHub } from './screens/PairHub.js';
+import { RoleChoice } from './screens/RoleChoice.js';
 import { Setup } from './screens/Setup.js';
 import { Stats } from './screens/Stats.js';
 import { setLocale } from './i18n/index.js';
@@ -55,6 +56,8 @@ export function App() {
       return <Landing />;
     case 'mode':
       return <ModeChoice />;
+    case 'pairRole':
+      return <RoleChoice />;
     case 'pair':
       return <PairHub />;
     case 'camera':
