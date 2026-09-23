@@ -216,7 +216,8 @@ in the middle of the bed, and the UI asks.
 
 ### Collecting it without it being a chore
 
-A **capture lab** in the app, built and usable during ordinary practice:
+A **camera setup screen with a practice round in it**, built and usable during
+ordinary practice:
 
 1. **Calibrate once per camera position.** Drag four markers onto the outer edge
    of the double ring on the centre lines of the 20, 6, 3 and 11. Those four
@@ -226,14 +227,21 @@ A **capture lab** in the app, built and usable during ordinary practice:
    through the resulting homography, over the photograph: if the drawn wires sit
    on the real ones the calibration is right, and if they drift you can see
    exactly where. It also reports the fit in pixels.
-2. **Play normally.** The motion gate watches the frame and photographs the
-   board each time it settles, so a practice session produces frames without
-   anyone pressing anything. Automatic capture pauses when 40 unlabelled frames
-   are waiting, because photographs are cheap to take and slow to mark up.
-3. **Tap each dart tip** on the photograph. The tap is read through the
-   homography, so the label carries both the image pixel and the board
-   millimetre, and the score appears next to the marker as confirmation.
-4. **Export** a zip of frames plus `labels.json` in the format `ml/` reads.
+2. **Try it.** Throw a dart. The board settles, the app photographs it, you tap
+   the dart in the picture, and the score is called back out loud. Tap, hear,
+   throw again.
+
+   That one loop does three jobs. It proves the camera is set up properly — a
+   wrong calibration gives a wrong score and you hear it. It is the least
+   tedious way to label data, because a dart you have just thrown is a dart you
+   can still see. And one throw is one labelled sample, so the counter going up
+   *is* the training set being built.
+
+   An earlier version photographed everything and queued it for labelling
+   later. Forty near-identical photographs of a board is a chore nobody
+   finishes, and it was not obvious what it was for. Now nothing is stored
+   unless it has been marked: an unmarked frame is replaced by the next one.
+3. **Export** a zip of frames plus `labels.json` in the format `ml/` reads.
 
 The same flow runs inside a game, and that is the path meant for everyday use:
 with the camera on, the end of every visit offers **Mark where they landed**,
