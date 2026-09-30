@@ -18,7 +18,7 @@ import { useStrings } from '../i18n/index.js';
 import { PairingConnection } from '../pairing/session.js';
 import { formatShortCode } from '../pairing/shortcode.js';
 import { useMatchStore } from '../store/match.js';
-import { keepAwake, startCamera, stopCamera } from '../vision/camera.js';
+import { grabJpeg, keepAwake, startCamera, stopCamera } from '../vision/camera.js';
 
 type Step = 'scan' | 'answer' | 'live' | 'failed';
 
@@ -57,6 +57,10 @@ export function CameraRole() {
 
       const joined = await PairingConnection.join(text, media);
       connection.current = joined.connection;
+      // The photographs that get labelled come from here, at the camera's full
+      // size, not from the video the laptop sees — see `pairing/photo.ts`.
+      joined.connection.onPhotoRequest = async () =>
+        videoRef.current ? grabJpeg(videoRef.current, 0.92) : null;
       setAnswer(joined.code);
       setShortCode(joined.shortCode);
       setStep('answer');

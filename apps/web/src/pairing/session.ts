@@ -12,7 +12,9 @@
  * side waits for ICE gathering to finish and puts everything in one code.
  */
 
+import type { GrabbedFrame } from '../vision/camera.js';
 import { encodePayload, decodePayload, expectRole, type PairingRole } from './payload.js';
+import { PHOTO_CHUNK_BYTES, PhotoAssembler, chunks, type PhotoMessage } from './photo.js';
 import { encodeShortCode, decodeShortCode, readAnswer, rebuildAnswer } from './shortcode.js';
 
 export type PairState = 'new' | 'waiting' | 'connecting' | 'connected' | 'failed' | 'closed';
@@ -27,6 +29,9 @@ export interface ControlMessage {
 
 /** How long to wait for a browser to finish listing its local addresses. */
 const ICE_TIMEOUT_MS = 3000;
+
+/** A full-size JPEG over home Wi-Fi takes well under a second; this is generous. */
+const PHOTO_TIMEOUT_MS = 8000;
 
 /**
  * Offer two codecs, not eleven.
@@ -94,6 +99,15 @@ export class PairingConnection {
   onState: ((state: PairState) => void) | null = null;
   onStream: ((stream: MediaStream) => void) | null = null;
   onMessage: ((message: ControlMessage) => void) | null = null;
+  /** The phone's side: take a full-resolution photograph when the laptop asks. */
+  onPhotoRequest: (() => Promise<GrabbedFrame | null>) | null = null;
+
+  private photoChannel: RTCDataChannel | null = null;
+  private photoAssembler = new PhotoAssembler();
+  private nextPhotoId = 1;
+  private photoWaiters = new Map<number, (frame: GrabbedFrame | null) => void>();
+  /** One photograph at a time: two sets of chunks interleaved would be one corrupt JPEG. */
+  private photoQueue: Promise<void> = Promise.resolve();
 
   constructor(readonly role: PairingRole) {
     // max-bundle puts the video and the control channel on one transport, so
@@ -115,7 +129,8 @@ export class PairingConnection {
     });
 
     this.pc.addEventListener('datachannel', (event) => {
-      this.attachChannel(event.channel);
+      if (event.channel.label === 'photo') this.attachPhotoChannel(event.channel);
+      else this.attachChannel(event.channel);
     });
   }
 
@@ -145,8 +160,111 @@ export class PairingConnection {
     if (this.channel?.readyState === 'open') this.channel.send(JSON.stringify(message));
   }
 
+  private attachPhotoChannel(channel: RTCDataChannel): void {
+    this.photoChannel = channel;
+    channel.binaryType = 'arraybuffer';
+    channel.bufferedAmountLowThreshold = PHOTO_CHUNK_BYTES * 16;
+    channel.addEventListener('message', (event) => {
+      if (event.data instanceof ArrayBuffer) {
+        const photo = this.photoAssembler.push(new Uint8Array(event.data));
+        if (photo) {
+          const jpeg = new Blob([photo.data as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' });
+          this.settlePhoto(photo.id, { jpeg, width: photo.width, height: photo.height });
+        }
+        return;
+      }
+      let message: PhotoMessage;
+      try {
+        message = JSON.parse(String(event.data)) as PhotoMessage;
+      } catch {
+        return;
+      }
+      if (message.type === 'request') {
+        this.photoQueue = this.photoQueue.then(() => this.answerPhoto(message.id)).catch(() => undefined);
+      }
+      else if (message.type === 'photo') this.photoAssembler.start(message);
+      else if (message.type === 'failed') this.settlePhoto(message.id, null);
+    });
+  }
+
+  private settlePhoto(id: number, frame: GrabbedFrame | null): void {
+    const waiter = this.photoWaiters.get(id);
+    this.photoWaiters.delete(id);
+    waiter?.(frame);
+  }
+
+  /** The phone's side: photograph, then send the header and the bytes. */
+  private async answerPhoto(id: number): Promise<void> {
+    const channel = this.photoChannel;
+    if (!channel || channel.readyState !== 'open') return;
+
+    const frame = await this.onPhotoRequest?.().catch(() => null);
+    if (!frame) {
+      channel.send(JSON.stringify({ type: 'failed', id } satisfies PhotoMessage));
+      return;
+    }
+    const data = new Uint8Array(await frame.jpeg.arrayBuffer());
+    channel.send(
+      JSON.stringify({
+        type: 'photo',
+        id,
+        width: frame.width,
+        height: frame.height,
+        bytes: data.length,
+      } satisfies PhotoMessage),
+    );
+    for (const chunk of chunks(data)) {
+      // Queueing megabytes at once overflows the send buffer and closes the
+      // channel, so wait for it to drain whenever it gets deep.
+      if (channel.bufferedAmount > channel.bufferedAmountLowThreshold) {
+        await new Promise<void>((resolve) =>
+          channel.addEventListener('bufferedamountlow', () => resolve(), { once: true }),
+        );
+      }
+      if (channel.readyState !== 'open') return;
+      channel.send(chunk as Uint8Array<ArrayBuffer>);
+    }
+  }
+
+  /**
+   * The laptop's side: a full-resolution photograph from the phone's camera,
+   * or null if the phone cannot or does not answer in time.
+   */
+  async requestPhoto(): Promise<GrabbedFrame | null> {
+    const channel = this.photoChannel;
+    if (!channel) return null;
+    // Right after pairing the channel may still be opening. Giving up at once
+    // would quietly drop the whole session back to the video's resolution.
+    if (channel.readyState === 'connecting') {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, PHOTO_TIMEOUT_MS);
+        channel.addEventListener('open', () => {
+          clearTimeout(timer);
+          resolve();
+        }, { once: true });
+      });
+    }
+    if (channel.readyState !== 'open') return null;
+
+    const id = this.nextPhotoId++;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.photoAssembler.reset();
+        this.settlePhoto(id, null);
+      }, PHOTO_TIMEOUT_MS);
+      this.photoWaiters.set(id, (frame) => {
+        clearTimeout(timer);
+        resolve(frame);
+      });
+      channel.send(JSON.stringify({ type: 'request', id } satisfies PhotoMessage));
+    });
+  }
+
   close(): void {
     this.send({ type: 'bye' });
+    this.photoChannel?.close();
+    this.photoWaiters.forEach((resolve) => resolve(null));
+    this.photoWaiters.clear();
     this.channel?.close();
     this.pc.close();
     this.setState('closed');
@@ -156,6 +274,9 @@ export class PairingConnection {
   static async host(): Promise<{ connection: PairingConnection; code: string }> {
     const connection = new PairingConnection('hub');
     connection.attachChannel(connection.pc.createDataChannel('control', { ordered: true }));
+    // Both channels ride the one SCTP association the offer already describes,
+    // so the second costs nothing in the QR code.
+    connection.attachPhotoChannel(connection.pc.createDataChannel('photo', { ordered: true }));
 
     const transceiver = connection.pc.addTransceiver('video', { direction: 'recvonly' });
     preferHardwareCodecs(transceiver);

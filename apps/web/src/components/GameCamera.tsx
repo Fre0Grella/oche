@@ -57,6 +57,7 @@ export function GameCamera({ matchId, darts, visitComplete, onCorrect }: GameCam
   const setScreen = useMatchStore((s) => s.setScreen);
   const mode = useMatchStore((s) => s.mode);
   const remoteStream = useMatchStore((s) => s.remoteStream);
+  const pairing = useMatchStore((s) => s.pairing);
 
   const [latest, setLatest] = useState<GrabbedFrame | null>(null);
   const [reporting, setReporting] = useState(false);
@@ -95,6 +96,7 @@ export function GameCamera({ matchId, darts, visitComplete, onCorrect }: GameCam
     region,
     reference,
     stream: mode === 'paired' ? remoteStream : null,
+    grab: mode === 'paired' && pairing ? () => pairing.requestPhoto() : null,
   });
 
   const view = useMemo(

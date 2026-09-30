@@ -6,12 +6,20 @@
  * file is the part that only a browser can do.
  */
 
+/**
+ * As large as the camera will go. The photographs taken from this stream are
+ * what the autoscorer is trained on and later reads, and a dart tip is a few
+ * pixels wide: at 1080p a board filling half the frame is about 1 mm a pixel,
+ * and the double ring is 8 mm. `ideal` means a camera that cannot do 4K gives
+ * its largest size instead of failing.
+ */
+const MAX_SIZE = { width: { ideal: 3840 }, height: { ideal: 2160 } };
+
 const CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: {
     facingMode: { ideal: 'environment' },
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
+    ...MAX_SIZE,
     frameRate: { ideal: 30 },
   },
 };
@@ -35,7 +43,7 @@ export async function startCamera(deviceId?: string): Promise<MediaStream> {
     throw new Error('This browser will not give a page camera access.');
   }
   const constraints: MediaStreamConstraints = deviceId
-    ? { audio: false, video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } } }
+    ? { audio: false, video: { deviceId: { exact: deviceId }, ...MAX_SIZE } }
     : CONSTRAINTS;
 
   return navigator.mediaDevices.getUserMedia(constraints);

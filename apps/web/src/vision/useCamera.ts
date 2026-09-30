@@ -30,6 +30,15 @@ export interface UseCameraOptions {
    * camera of its own, and everything downstream is identical.
    */
   stream?: MediaStream | null;
+  /**
+   * Where photographs come from, when not from the video on screen. In paired
+   * mode that video is a compressed, downscaled copy, so the phone takes the
+   * photograph itself (`pairing/photo.ts`). Sizes the hook reports, and the
+   * region it is given, are then those of the photograph, not of the video. If
+   * the first photograph never arrives — an older phone build — the video is
+   * used after all.
+   */
+  grab?: (() => Promise<GrabbedFrame | null>) | null;
   /** Called once per throw, with the frame taken when the board went still. */
   onSettle?: (frame: GrabbedFrame) => void;
   /** Set false to watch for motion without photographing anything. */
@@ -73,6 +82,7 @@ export function useCamera({
   region = null,
   reference = null,
   stream: externalStream = null,
+  grab = null,
 }: UseCameraOptions): CameraState {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -93,18 +103,32 @@ export function useCamera({
   const [quality, setQuality] = useState<ImageQuality | null>(null);
 
   settleHandler.current = onSettle;
+  const grabRef = useRef(grab);
+  grabRef.current = grab;
+  /** The photograph's size when it is not the video's; null while it is. */
+  const photoSize = useRef<{ width: number; height: number } | null>(null);
 
   const capture = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return null;
+    if (photoSize.current && grabRef.current) return grabRef.current();
     return grabJpeg(video);
   }, []);
 
   const sampleThumbnail = useCallback((sampleRegion?: Region | null) => {
     const video = videoRef.current;
     if (!video) return null;
-    return thumbnail(video, sampleRegion === undefined ? regionRef.current : sampleRegion);
+    return thumbnail(video, toVideo(video, sampleRegion === undefined ? regionRef.current : sampleRegion));
   }, []);
+
+  /** A region in photograph pixels, in the video's pixels instead. */
+  function toVideo(video: HTMLVideoElement, area: Region | null): Region | null {
+    const photo = photoSize.current;
+    if (!area || !photo || video.videoWidth === 0) return area;
+    const sx = video.videoWidth / photo.width;
+    const sy = video.videoHeight / photo.height;
+    return { x: area.x * sx, y: area.y * sy, width: area.width * sx, height: area.height * sy };
+  }
 
   useEffect(() => {
     if (!active) return;
@@ -132,7 +156,14 @@ export function useCamera({
         video.muted = true;
         await video.play().catch(() => undefined);
 
-        setSize({ width: video.videoWidth, height: video.videoHeight });
+        // One photograph up front, to learn its size: calibration, the overlay
+        // and the stale-calibration check all work in photograph pixels.
+        photoSize.current = null;
+        const probe = grabRef.current ? await grabRef.current() : null;
+        if (cancelled) return;
+        if (probe) photoSize.current = { width: probe.width, height: probe.height };
+
+        setSize(photoSize.current ?? { width: video.videoWidth, height: video.videoHeight });
         setReady(true);
         setError(null);
         detector.current.reset();
@@ -145,11 +176,13 @@ export function useCamera({
 
           const element = videoRef.current;
           if (!element) return;
-          if (element.videoWidth !== 0 && element.videoWidth !== size.width) {
+          // The received video changes size with the bandwidth; the photograph
+          // does not, so only a local camera's size is tracked here.
+          if (!photoSize.current && element.videoWidth !== 0 && element.videoWidth !== size.width) {
             setSize({ width: element.videoWidth, height: element.videoHeight });
           }
 
-          const thumb = thumbnail(element, regionRef.current);
+          const thumb = thumbnail(element, toVideo(element, regionRef.current));
           if (!thumb) return;
 
           const now = performance.now();
@@ -166,7 +199,8 @@ export function useCamera({
 
           if (state === 'settled' && captureOnSettle && !capturing.current) {
             capturing.current = true;
-            void grabJpeg(element)
+            const photograph = photoSize.current && grabRef.current ? grabRef.current() : grabJpeg(element);
+            void photograph
               .then((grabbed) => {
                 if (grabbed && !cancelled) {
                   setSettles((count) => count + 1);
