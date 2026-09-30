@@ -53,7 +53,8 @@ DEEPDARTS_CALIBRATION_BOARD = np.array(
 
 
 def _find_labels(root: Path) -> Path:
-    for candidate in (root / "labels.pkl", root / "dataset" / "labels.pkl"):
+    # labels_pkl.zip from DataPort unzips to labels_pkl/labels.pkl
+    for candidate in (root / "labels.pkl", root / "labels_pkl" / "labels.pkl", root / "dataset" / "labels.pkl"):
         if candidate.exists():
             return candidate
     raise FileNotFoundError(f"no labels.pkl under {root}")
