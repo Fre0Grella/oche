@@ -102,8 +102,10 @@ Each label entry holds:
   calibration         the four board landmarks as tapped, in image pixels, and the
                       homography between board millimetres and image pixels
   darts[]             per dart: img {x,y} in pixels, board {x,y} in millimetres
-                      from the centre of the bull (+x right, +y up), and the hit
-                      it scores
+                      from the centre of the bull (+x right, +y up), the hit
+                      it scores, and by: "model" when the autoscorer proposed
+                      the mark and a person let it stand (absent: a person)
+  model               the model that proposed marks on this frame, if any
   reported            what the app believed when the frame was reported as wrong,
                       with the dart event ids it refers to
 
@@ -125,8 +127,9 @@ interface ExportedFrame {
     toBoard: Matrix3;
     error: number;
   };
-  darts: { img: Point; board: Point; hit: Hit }[];
+  darts: { img: Point; board: Point; hit: Hit; by?: 'person' | 'model' }[];
   reported?: { hits: string[]; dartIds: string[]; source: string };
+  model?: string;
   note?: string;
 }
 
@@ -154,6 +157,7 @@ export async function exportFrames(frames: readonly CapturedFrame[]): Promise<Bl
       },
       darts: frame.darts,
       ...(frame.reported ? { reported: frame.reported } : {}),
+      ...(frame.model ? { model: frame.model } : {}),
       ...(frame.note ? { note: frame.note } : {}),
     });
   }

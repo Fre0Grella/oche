@@ -44,6 +44,12 @@ export interface LabelledDart {
   /** The same point in board millimetres. */
   board: Point;
   hit: Hit;
+  /**
+   * Who put the mark there. `model` means the autoscorer proposed it and a
+   * person looked and let it stand; it never goes in a test set, which would
+   * then be the model marking its own homework. Absent means a person.
+   */
+  by?: 'person' | 'model';
 }
 
 export interface CapturedFrame {
@@ -65,6 +71,8 @@ export interface CapturedFrame {
    * read" against "what was true" is the measurement shadow mode is built on.
    */
   reported?: { hits: string[]; dartIds: string[]; source: string };
+  /** The model that proposed marks on this frame, if any did. */
+  model?: string;
   note?: string;
 }
 

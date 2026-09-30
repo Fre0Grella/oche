@@ -17,6 +17,13 @@
  * A queue of forty near-identical photographs of a board is a chore nobody
  * finishes, and it was not obvious what it was for. Nothing is stored now
  * unless it has been marked.
+ *
+ * The darts are not pulled between throws, because a model has to learn the
+ * second and third dart of a visit with the first ones in the way. So each
+ * photograph opens with the darts already in the board marked where they were
+ * (see `storage/visit.ts`), only the new one is left to tap, and nothing saves
+ * itself until the next throw or "save": a frame with a visible dart unmarked
+ * would teach the model that a dart is background.
  */
 
 import {
@@ -45,18 +52,13 @@ import {
   type LabelledDart,
 } from '../storage/frames.js';
 import { storageEstimate } from '../storage/db.js';
+import { carriedInto, inBoardAfter, newDarts, proposalsBeside, worthSaving } from '../storage/visit.js';
 import { useMatchStore } from '../store/match.js';
 import { cameraSupported, type GrabbedFrame } from '../vision/camera.js';
+import { loadDetector, type Detector } from '../vision/detector.js';
 import { useCamera } from '../vision/useCamera.js';
 
 type Mode = 'setup' | 'calibrate' | 'try';
-
-/**
- * How long a marked frame stays open before it saves itself. Long enough to
- * tap a second dart if two went in together, short enough that the rhythm of
- * throw-tap-throw is not interrupted.
- */
-const SAVE_DELAY_MS = 2200;
 
 function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -89,8 +91,31 @@ function defaultHandles(width: number, height: number): Point[] {
 interface PendingFrame {
   grabbed: GrabbedFrame;
   url: string;
+  /** The darts carried from earlier photographs of the visit come first. */
   darts: LabelledDart[];
+  carried: number;
+  /** Anything tapped, dragged or removed: from then on it is worth saving. */
+  edited: boolean;
+  /** Darts the model proposed on this photograph, appended after the carried ones. */
+  proposed: number;
+  /** The model is still looking. */
+  checking: boolean;
+  /** Held back from the model on purpose, so a person marks it: see BLIND_SHARE. */
+  blind: boolean;
+  /** The model that proposed, for the record. */
+  model?: string;
 }
+
+/**
+ * With the autoscorer proposing, one visit in five is still left for a person
+ * to mark from scratch. A visit where the model proposed anything can never be
+ * in a test set (the model would be marking its own homework; see
+ * ml/oche_ml/sources.py), so without these the test set would only grow when
+ * proposals are switched off. It is decided per visit, not per photograph:
+ * the three photographs of a visit are one unit to the split, and a visit is
+ * only clean if the model was kept out of all of it.
+ */
+const BLIND_SHARE = 0.2;
 
 export function Capture() {
   const t = useStrings();
@@ -100,6 +125,7 @@ export function Capture() {
   const callerEnabled = useMatchStore((s) => s.settings.callerEnabled);
   const playMode = useMatchStore((s) => s.mode);
   const remoteStream = useMatchStore((s) => s.remoteStream);
+  const pairing = useMatchStore((s) => s.pairing);
 
   const [cameraOn, setCameraOn] = useState(false);
   const [mode, setMode] = useState<Mode>('setup');
@@ -108,7 +134,15 @@ export function Capture() {
 
   const [pending, setPending] = useState<PendingFrame | null>(null);
   const [marked, setMarked] = useState<{ hit: Hit; id: string }[]>([]);
-  const [lastSaved, setLastSaved] = useState<{ id: string; hit: Hit } | null>(null);
+  const [lastSaved, setLastSaved] = useState<{ id: string; added: number; inBoardBefore: LabelledDart[] } | null>(
+    null,
+  );
+  /** The darts in the board as of the last saved photograph. */
+  const [inBoard, setInBoard] = useState<LabelledDart[]>([]);
+  const [detector, setDetector] = useState<Detector | null>(null);
+  const [proposing, setProposing] = useState(true);
+  /** Photographs where the model proposed: let stand, or corrected. */
+  const [verdicts, setVerdicts] = useState({ right: 0, corrected: 0 });
 
   const [stats, setStats] = useState({ total: 0, labelled: 0, bytes: 0 });
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
@@ -121,7 +155,14 @@ export function Capture() {
   modeRef.current = mode;
   const pendingRef = useRef<PendingFrame | null>(null);
   pendingRef.current = pending;
-  const saveTimer = useRef(0);
+  const inBoardRef = useRef(inBoard);
+  inBoardRef.current = inBoard;
+  const detectorRef = useRef(detector);
+  detectorRef.current = proposing ? detector : null;
+  /** Whether the model is kept out of the current visit; rolled when a visit starts. */
+  const blindVisitRef = useRef(false);
+  const callerRef = useRef(callerEnabled);
+  callerRef.current = callerEnabled;
 
   const paired = playMode === 'paired' && remoteStream !== null;
 
@@ -135,22 +176,123 @@ export function Capture() {
   }, [refreshStats]);
 
   /**
-   * A settled frame becomes the one on screen to mark. Anything already on
-   * screen and unmarked is dropped: the newest photograph of the board is the
-   * one with the dart you just threw in it.
+   * Writes the marked frame away. Deliberately not done inside a state updater:
+   * React calls those twice in development, and a training set with every
+   * sample duplicated would be worse than no training set.
    */
-  const onSettle = useCallback((grabbed: GrabbedFrame) => {
-    if (modeRef.current !== 'try') return;
+  const savePending = useCallback(async () => {
+    const frame = pendingRef.current;
     const current = calibrationRef.current;
-    if (!current) return;
-    if (current.width !== grabbed.width || current.height !== grabbed.height) return;
+    pendingRef.current = null;
+    setPending(null);
 
+    if (!frame) return;
+    if (!current || !worthSaving(frame)) {
+      URL.revokeObjectURL(frame.url);
+      return;
+    }
+
+    const stored: CapturedFrame = {
+      id: newId(),
+      ts: Date.now(),
+      source: 'lab',
+      width: frame.grabbed.width,
+      height: frame.grabbed.height,
+      jpeg: frame.grabbed.jpeg,
+      calibration: {
+        imagePoints: current.imagePoints,
+        toImage: current.toImage,
+        toBoard: current.toBoard,
+        error: current.error,
+        width: current.width,
+        height: current.height,
+      },
+      darts: frame.darts,
+      labelled: true,
+      ...(frame.proposed > 0 && frame.model ? { model: frame.model } : {}),
+    };
+    if (frame.proposed > 0) {
+      const letStand = !frame.edited;
+      setVerdicts((v) => (letStand ? { ...v, right: v.right + 1 } : { ...v, corrected: v.corrected + 1 }));
+    }
+
+    // The next photograph opens with these marks, so the ref moves now rather
+    // than whenever React re-renders.
+    const before = inBoardRef.current;
+    const after = inBoardAfter(frame.darts);
+    inBoardRef.current = after;
+    setInBoard(after);
+
+    URL.revokeObjectURL(frame.url);
+    await putFrame(stored);
+    setLastSaved({ id: stored.id, added: newDarts(frame.darts, frame.carried).length, inBoardBefore: before });
+    void refreshStats();
+  }, [refreshStats]);
+
+  const openFrame = useCallback((grabbed: GrabbedFrame) => {
+    const carried = carriedInto(inBoardRef.current);
+    const model = detectorRef.current;
+    const current = calibrationRef.current;
+    // An empty board is the start of a visit: roll once for all of it.
+    if (inBoardRef.current.length === 0) blindVisitRef.current = Math.random() < BLIND_SHARE;
+    const blind = model !== null && blindVisitRef.current;
+    const checking = model !== null && current !== null && !blind;
     setPending((previous) => {
-      if (previous && previous.darts.length > 0) return previous; // mid-marking
       if (previous) URL.revokeObjectURL(previous.url);
-      return { grabbed, url: URL.createObjectURL(grabbed.jpeg), darts: [] };
+      return {
+        grabbed,
+        url: URL.createObjectURL(grabbed.jpeg),
+        darts: carried,
+        carried: carried.length,
+        edited: false,
+        proposed: 0,
+        checking,
+        blind,
+        ...(model ? { model: model.manifest.name } : {}),
+      };
     });
-  }, []);
+    if (!checking || !model || !current) return;
+
+    void model
+      .detect(grabbed, current)
+      .catch(() => [])
+      .then((detections) => {
+        // Only onto the same photograph, and only if nobody has started on it.
+        const frame = pendingRef.current;
+        if (!frame || frame.grabbed !== grabbed) return;
+        // One new dart per photograph is the normal case; a second is rarer than
+        // a phantom from a model that has not seen this board, so the strongest
+        // one is proposed and a genuine second dart is tapped by hand.
+        const fresh = frame.edited ? [] : proposalsBeside(detections, frame.darts).slice(0, 1);
+        const marks: LabelledDart[] = fresh.map((d) => ({ img: d.img, board: d.board, hit: d.hit, by: 'model' }));
+        const next = { ...frame, darts: [...frame.darts, ...marks], proposed: marks.length, checking: false };
+        pendingRef.current = next;
+        setPending((p) => (p && p.grabbed === grabbed ? next : p));
+        if (marks.length > 0 && callerRef.current) {
+          unlockCaller();
+          marks.forEach((mark) => caller().say(t.caller.hit(mark.hit)));
+        }
+      });
+  }, [t]);
+
+  /**
+   * A settled frame becomes the one on screen to mark. The one before it is
+   * saved if it was marked and dropped if not: the newest photograph of the
+   * board is the one with the dart you just threw in it.
+   */
+  const onSettle = useCallback(
+    (grabbed: GrabbedFrame) => {
+      if (modeRef.current !== 'try') return;
+      const current = calibrationRef.current;
+      if (!current) return;
+      if (current.width !== grabbed.width || current.height !== grabbed.height) return;
+
+      const previous = pendingRef.current;
+      if (previous && worthSaving(previous)) void savePending().then(() => openFrame(grabbed));
+      else openFrame(grabbed);
+    },
+    [openFrame, savePending],
+  );
 
   const region = useMemo(
     () =>
@@ -172,6 +314,7 @@ export function Capture() {
     region,
     reference,
     stream: paired ? remoteStream : null,
+    grab: paired && pairing ? () => pairing.requestPhoto() : null,
   });
 
   const frameSize =
@@ -248,50 +391,6 @@ export function Capture() {
 
   // ---- try it ------------------------------------------------------------
 
-  /**
-   * Writes the marked frame away. Deliberately not done inside a state updater:
-   * React calls those twice in development, and a training set with every
-   * sample duplicated would be worse than no training set.
-   */
-  const savePending = useCallback(async () => {
-    window.clearTimeout(saveTimer.current);
-
-    const frame = pendingRef.current;
-    const current = calibrationRef.current;
-    pendingRef.current = null;
-    setPending(null);
-
-    if (!frame) return;
-    if (!current || frame.darts.length === 0) {
-      URL.revokeObjectURL(frame.url);
-      return;
-    }
-
-    const stored: CapturedFrame = {
-      id: newId(),
-      ts: Date.now(),
-      source: 'lab',
-      width: frame.grabbed.width,
-      height: frame.grabbed.height,
-      jpeg: frame.grabbed.jpeg,
-      calibration: {
-        imagePoints: current.imagePoints,
-        toImage: current.toImage,
-        toBoard: current.toBoard,
-        error: current.error,
-        width: current.width,
-        height: current.height,
-      },
-      darts: frame.darts,
-      labelled: true,
-    };
-
-    URL.revokeObjectURL(frame.url);
-    await putFrame(stored);
-    setLastSaved({ id: stored.id, hit: frame.darts[frame.darts.length - 1]!.hit });
-    void refreshStats();
-  }, [refreshStats]);
-
   /** Tapping the dart in the photograph: the score comes back out loud. */
   const markDart = (point: Point) => {
     const current = calibrationRef.current;
@@ -302,37 +401,82 @@ export function Capture() {
     if (callerEnabled) caller().say(t.caller.hit(dart.hit));
 
     setMarked((list) => [...list, { hit: dart.hit, id: newId() }]);
-    setPending((frame) => (frame ? { ...frame, darts: [...frame.darts, dart] } : frame));
-
-    window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => void savePending(), SAVE_DELAY_MS);
+    setPending((frame) => (frame ? { ...frame, darts: [...frame.darts, dart], edited: true } : frame));
   };
 
+  /**
+   * Takes the last mark off the photograph on screen: the dart just tapped, or,
+   * once those are gone, a carried one, which is how a dart that fell out is
+   * removed. With nothing on screen it deletes the last saved photograph.
+   */
   const undoLast = async () => {
     if (pending && pending.darts.length > 0) {
-      setPending((frame) => (frame ? { ...frame, darts: frame.darts.slice(0, -1) } : frame));
-      setMarked((list) => list.slice(0, -1));
+      const wasNew = pending.darts.length > pending.carried;
+      setPending((frame) =>
+        frame
+          ? {
+              ...frame,
+              darts: frame.darts.slice(0, -1),
+              carried: Math.min(frame.carried, frame.darts.length - 1),
+              edited: true,
+            }
+          : frame,
+      );
+      if (wasNew) setMarked((list) => list.slice(0, -1));
       return;
     }
     if (lastSaved) {
       await deleteFrame(lastSaved.id);
+      inBoardRef.current = lastSaved.inBoardBefore;
+      setInBoard(lastSaved.inBoardBefore);
+      setMarked((list) => list.slice(0, list.length - lastSaved.added));
       setLastSaved(null);
-      setMarked((list) => list.slice(0, -1));
       void refreshStats();
     }
+  };
+
+  /** The darts came out before the third: forget them, here and on screen. */
+  const boardCleared = () => {
+    inBoardRef.current = [];
+    setInBoard([]);
+    setPending((frame) =>
+      frame
+        ? {
+            ...frame,
+            darts: frame.darts.slice(frame.carried),
+            carried: 0,
+            edited: frame.darts.length > frame.carried,
+          }
+        : frame,
+    );
   };
 
   // Leaving the screen, or the mode, must not lose a dart already marked.
   useEffect(
     () => () => {
-      window.clearTimeout(saveTimer.current);
-      if (pendingRef.current && pendingRef.current.darts.length > 0) void savePending();
+      if (pendingRef.current?.edited) void savePending();
     },
     [savePending],
   );
 
   useEffect(() => {
-    if (mode !== 'try' && pendingRef.current) void savePending();
+    if (mode !== 'try') return;
+    let cancelled = false;
+    void loadDetector().then((loaded) => {
+      if (!cancelled) setDetector(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
+  // Leaving try-it ends the visit: by the time anyone comes back the darts may
+  // be out, or the camera recalibrated, and a carried mark would be a ghost.
+  useEffect(() => {
+    if (mode === 'try') return;
+    if (pendingRef.current) void savePending();
+    inBoardRef.current = [];
+    setInBoard([]);
   }, [mode, savePending]);
 
   useEffect(
@@ -376,6 +520,17 @@ export function Capture() {
 
   const ready = (cameraOn || paired) && calibration !== null && !staleCalibration;
 
+  function coachMessage(): string {
+    if (!pending) return inBoard.length > 0 ? fill(t.capture.throwNext, { n: inBoard.length }) : t.capture.throwOne;
+    if (pending.checking) return t.capture.looking;
+    if (pending.proposed > 0 && !pending.edited) {
+      const hits = pending.darts.slice(-pending.proposed).map((dart) => formatHit(dart.hit));
+      return fill(t.capture.proposal, { hits: hits.join(', ') });
+    }
+    if (pending.darts.length > pending.carried) return t.capture.tapAnother;
+    return pending.carried > 0 ? fill(t.capture.tapTheNewDart, { n: pending.carried }) : t.capture.tapTheDart;
+  }
+
   return (
     <div className="screen screen-capture">
       <header className="screen-head">
@@ -406,13 +561,7 @@ export function Capture() {
       {mode === 'try' && (
         <div className={`coach ${pending ? 'coach-warn' : 'coach-ready'}`} role="status">
           <span className="coach-dot" aria-hidden="true" />
-          <span className="coach-message">
-            {pending
-              ? pending.darts.length === 0
-                ? t.capture.tapTheDart
-                : t.capture.tapAnother
-              : t.capture.throwOne}
-          </span>
+          <span className="coach-message">{coachMessage()}</span>
         </div>
       )}
 
@@ -431,7 +580,10 @@ export function Capture() {
           }
           darts={
             mode === 'try' && pending
-              ? pending.darts.map((dart) => ({ img: dart.img, label: formatHit(dart.hit) }))
+              ? pending.darts.map((dart) => ({
+                  img: dart.img,
+                  label: dart.by === 'model' ? `${formatHit(dart.hit)}?` : formatHit(dart.hit),
+                }))
               : []
           }
           onDartMove={(index, point) => {
@@ -439,7 +591,11 @@ export function Capture() {
             if (!current) return;
             setPending((frame) =>
               frame
-                ? { ...frame, darts: frame.darts.map((dart, i) => (i === index ? readDart(current, point) : dart)) }
+                ? {
+                    ...frame,
+                    darts: frame.darts.map((dart, i) => (i === index ? readDart(current, point) : dart)),
+                    edited: true,
+                  }
                 : frame,
             );
           }}
@@ -451,7 +607,7 @@ export function Capture() {
         {mode === 'try' && !pending && (cameraOn || paired) && (
           <div className="stage-badge">
             {camera.moving ? t.capture.moving : t.capture.waiting} · {camera.motion.toFixed(1)} /{' '}
-            {camera.change.toFixed(1)}
+            {camera.change.toFixed(1)} · {fill(t.capture.photoSize, { size: `${camera.width}×${camera.height}` })}
           </div>
         )}
       </div>
@@ -504,7 +660,52 @@ export function Capture() {
 
           <p className="hint">{t.capture.tryHelp}</p>
 
+          {detector && (
+            <section className="panel">
+              <div className="controls">
+                <button
+                  type="button"
+                  className={`chip${proposing ? ' chip-on' : ''}`}
+                  onClick={() => setProposing((on) => !on)}
+                >
+                  {proposing ? t.capture.proposingOn : t.capture.proposingOff}
+                </button>
+              </div>
+              <p className="hint">
+                {proposing ? t.capture.proposingHelp : t.capture.proposingOffHelp}
+                {pending?.blind && ` ${t.capture.blindFrame}`}
+              </p>
+              {verdicts.right + verdicts.corrected > 0 && (
+                <p className="hint">
+                  {fill(t.capture.verdicts, { right: verdicts.right, n: verdicts.right + verdicts.corrected })}
+                </p>
+              )}
+              <p className="hint">
+                {fill(t.capture.modelName, { name: detector.manifest.name })}
+                {detector.manifest.deepdarts && ` ${t.capture.deepdartsCredit}`}
+              </p>
+            </section>
+          )}
+
           <div className="controls">
+            <button
+              type="button"
+              className="primary"
+              onClick={() => void savePending()}
+              disabled={!pending || !worthSaving(pending)}
+            >
+              {pending && pending.darts.length > 0
+                ? fill(t.capture.saveFrame, { n: pending.darts.length })
+                : t.capture.saveFrameEmpty}
+            </button>
+            <button
+              type="button"
+              className="chip"
+              onClick={boardCleared}
+              disabled={inBoard.length === 0 && (!pending || pending.carried === 0)}
+            >
+              {t.capture.boardCleared}
+            </button>
             <button
               type="button"
               className="chip"
@@ -520,7 +721,7 @@ export function Capture() {
               type="button"
               className="chip"
               onClick={() => void undoLast()}
-              disabled={marked.length === 0}
+              disabled={(pending?.darts.length ?? 0) === 0 && !lastSaved}
             >
               {t.capture.undo}
             </button>

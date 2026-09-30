@@ -308,20 +308,40 @@ export const en = {
   capture: {
     title: 'Camera setup',
     subtitle: 'Set the camera up once here. After that it works during a normal game.',
-    trySubtitle: 'Throw a dart. I photograph the board, you tap the dart, and I call the score back — and that throw becomes a training sample.',
+    trySubtitle:
+      'Throw a dart and leave it in. I photograph the board, you tap the new dart, and I call the score back — and every photograph, with every dart in it marked, becomes a training sample.',
     tryIt: 'Try it — throw some darts',
     tryHelp:
       'If the score I call back is wrong, the camera is not where the app thinks it is: go back and find the board again. Every dart you mark is saved as a labelled photograph, which is what the autoscorer will be trained on.',
     throwOne: 'Throw a dart — I am watching the board',
     tapTheDart: 'Got it. Tap the dart in the picture',
-    tapAnother: 'Saved. Tap another if two went in',
+    tapTheNewDart:
+      'Got it. The {n} already in the board are marked where they were — drag any that moved, then tap the new one',
+    tapAnother: 'Tap another if two went in, then save — or just throw the next one',
+    throwNext: 'Leave the {n} in and throw the next dart',
+    saveFrame: 'Save ({n} marked)',
+    saveFrameEmpty: 'Save',
+    boardCleared: 'I pulled the darts out',
+    photoSize: 'photos {size}',
+    looking: 'Looking for the dart…',
+    proposal: 'I read {hits}. Right? Just throw the next one. Wrong? Drag the mark onto the tip, or tap the dart.',
+    proposingOn: 'Autoscorer proposes: on',
+    proposingOff: 'Autoscorer proposes: off',
+    proposingHelp:
+      'The autoscorer marks the new dart and calls it. If it is right, carry on throwing — that photograph is saved as it stands. If not, fix the mark and it learns from exactly that mistake.',
+    proposingOffHelp: 'You mark every dart yourself.',
+    blindFrame: 'This visit is yours to mark: one in five is, so the autoscorer can be tested on visits it never saw.',
+    verdicts: 'Right {right} times out of {n} this session.',
+    modelName: 'Model: {name}.',
+    deepdartsCredit:
+      'Trained on the DeepDarts dataset (McNally, Vats, Wong and McPhee, CVPR Workshops 2021, CC BY).',
     markedCount: '{n} marked this session',
     undo: 'Undo that one',
     doneTrying: 'Done',
     steps: [
       'Stand the phone about a metre from the board, a little off to one side — not straight on, so the darts stick out towards the camera.',
       'Start the camera, tap "Find the board" and drag the four markers onto the outer edge of the double ring. The green board is drawn from your markers: nudge until it sits on the real wires.',
-      'Tap "Try it" and throw a few darts. Tap each one in the photograph and the app calls the score back: if it is right, the camera is set up properly — and each dart you mark is one labelled training sample.',
+      'Tap "Try it" and throw a visit, leaving the darts in. After each throw, tap the new dart in the photograph and the app calls the score back: if it is right, the camera is set up properly. The darts already in the board are marked for you, because a photograph only teaches the autoscorer if every dart in it is marked.',
     ],
     stepsTitle: 'Three steps, once',
     start: 'Start camera',
