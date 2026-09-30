@@ -1,0 +1,68 @@
+name: Publish model
+
+# Turns a draft model release into a published one, then redeploys the app so
+# it ships with that model. The draft is made on the machine that trained the
+# model (`python -m oche_ml.publish`, see ml/README.md): training needs a GPU and
+# data that never leaves that machine, so nothing here trains or sees the data.
+#
+# Before publishing, the draft's file is checked against the model card
+# committed to the repository — the file that goes public is the file that was
+# evaluated — and against the input/output contract the browser relies on.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: Model name, as given to oche_ml.export (e.g. tips-v1)
+        required: true
+
+permissions:
+  contents: write # publish the release
+  actions: write # start the Deploy workflow
+
+concurrency:
+  group: model-release
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NAME: ${{ inputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the name
+        run: |
+          [[ "$NAME" =~ ^[a-z0-9][a-z0-9.-]{0,40}$ ]] || { echo "::error::model names are lower-case letters, digits, dots and dashes"; exit 1; }
+
+      - name: Read the SHA-256 from the committed model card
+        id: card
+        run: |
+          card="ml/models/$NAME/CARD.md"
+          [ -f "$card" ] || { echo "::error::$card is not on $GITHUB_REF_NAME: commit and push it first"; exit 1; }
+          sha=$(grep -oE 'SHA-256 \| `[0-9a-f]{64}`' "$card" | grep -oE '[0-9a-f]{64}')
+          [ -n "$sha" ] || { echo "::error::no SHA-256 in $card"; exit 1; }
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Download the draft
+        run: |
+          state=$(gh release view "model-$NAME" --json isDraft --jq .isDraft) || { echo "::error::no release model-$NAME: run python -m oche_ml.publish --name $NAME"; exit 1; }
+          [ "$state" = "true" ] || { echo "::error::model-$NAME is already published"; exit 1; }
+          gh release download "model-$NAME" --pattern "$NAME.onnx" --dir "$RUNNER_TEMP/model"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate against the card and the browser's contract
+        working-directory: ml
+        run: |
+          pip install --quiet numpy onnxruntime
+          python -m oche_ml.validate_onnx "$RUNNER_TEMP/model/$NAME.onnx" --sha256 "${{ steps.card.outputs.sha256 }}"
+
+      - name: Publish
+        run: gh release edit "model-$NAME" --draft=false --latest=false
+
+      - name: Redeploy the app with this model
+        run: gh workflow run deploy.yml --ref "${{ github.event.repository.default_branch }}"

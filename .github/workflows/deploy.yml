@@ -28,6 +28,30 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # The newest published model release goes into the site itself: the app
+      # loads it from its own origin (release downloads send no CORS headers,
+      # so a browser could not fetch them directly anyway). The file name
+      # carries the hash and the manifest the full SHA-256, which the app checks.
+      # No model release yet is fine: the app works without one.
+      - name: Add the latest published model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release list --limit 100 --json tagName,isDraft,isPrerelease,publishedAt \
+            --jq '[.[] | select((.tagName | startswith("model-")) and (.isDraft | not) and (.isPrerelease | not))] | sort_by(.publishedAt) | last | .tagName // empty')
+          if [ -z "$tag" ]; then echo "no published model release: deploying without a model"; exit 0; fi
+          name="${tag#model-}"
+          gh release download "$tag" --pattern "$name.onnx" --dir "$RUNNER_TEMP/model"
+          sha=$(sha256sum "$RUNNER_TEMP/model/$name.onnx" | cut -d' ' -f1)
+          card="ml/models/$name/CARD.md"
+          if [ -f "$card" ] && ! grep -q "$sha" "$card"; then echo "::error::$tag does not match $card"; exit 1; fi
+          file="$name-${sha:0:12}.onnx"
+          mkdir -p apps/web/dist/models
+          cp "$RUNNER_TEMP/model/$name.onnx" "apps/web/dist/models/$file"
+          deepdarts=false
+          if [ -f "$card" ] && grep -q "DeepDarts: yes" "$card"; then deepdarts=true; fi
+          printf '{"name":"%s","file":"%s","sha256":"%s","deepdarts":%s}\n' "$name" "$file" "$sha" "$deepdarts" > apps/web/dist/models/manifest.json
+          echo "shipping $tag as models/$file"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
