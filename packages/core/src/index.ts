@@ -9,3 +9,4 @@ export * from './stats/positional.js';
 export * from './vision/homography.js';
 export * from './vision/calibration.js';
 export * from './vision/quality.js';
+export * from './vision/tips.js';
