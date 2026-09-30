@@ -99,6 +99,22 @@ is the smoke test: with augmentation off it should memorise a handful of
 photographs almost exactly. If it cannot, something in the pipeline is broken,
 and no amount of data will help.
 
+## Retraining, in one command
+
+`retrain.ps1` does all of the below in order and stops at the first failure:
+
+```powershell
+cd ml
+.\retrain.ps1 -Name tips-v1 -Publish     # DeepDarts only: no data/oche/*.zip yet
+.\retrain.ps1 -Name tips-v2 -Publish     # with your exports in data/oche/: fine-tunes on them
+```
+
+It pretrains on DeepDarts only if `runs/pretrain/best.pt` is missing (or with
+`-Pretrain`), fine-tunes when there are exports in `data/oche/`, evaluates,
+exports, and with `-Publish` uploads the draft release. The two steps that
+touch the public repository are then yours: commit and push the model card,
+and `gh workflow run model-release.yml -f name=<name>`.
+
 ## Version 1: DeepDarts only
 
 The first model is trained on DeepDarts alone, before there are enough clean
