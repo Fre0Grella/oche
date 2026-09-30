@@ -34,7 +34,7 @@ account to create.
 packages/core/     Board geometry, X01 rules, checkout routes, stats. Pure TS, no DOM.
 apps/web/          The app: React + Vite, PWA.
 docs/              Plan, decisions and the licence map. Start with docs/07-roadmap.md.
-ml/                (later) Dataset prep, training, evaluation, ONNX export.
+ml/                Dataset loading, training, evaluation, ONNX export (Python; see ml/README.md).
 services/pair/     (later) Signalling relay for phone↔laptop pairing.
 ```
 

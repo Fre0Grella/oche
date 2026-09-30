@@ -1,0 +1,8 @@
+# PyTorch itself is installed first, from the index that matches your GPU — see README.md.
+timm>=1.0.9
+opencv-python-headless>=4.9
+numpy>=1.26
+pandas>=2.0        # DeepDarts ships its labels as a pickled DataFrame
+onnx>=1.16
+onnxruntime>=1.18
+pytest>=8

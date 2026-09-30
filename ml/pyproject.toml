@@ -1,0 +1,10 @@
+[project]
+name = "oche-ml"
+version = "0.1.0"
+description = "Training, evaluation and ONNX export for the oche dart-tip model."
+requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

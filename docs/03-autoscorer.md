@@ -138,6 +138,23 @@ The un-warped alternative (detect calibration points and tips in the raw frame
 in one pass, as DeepDarts does) is kept as the baseline to beat, because it is
 one model instead of two. Both are evaluated; the doc will record which won.
 
+#### The rectified view, exactly
+
+Training (`ml/oche_ml/board.py`) and the browser must build the same square,
+or a model that passed its gate reads nonsense in the app:
+
+| | |
+|---|---|
+| Size | 512 × 512 pixels, RGB, values 0–1 |
+| Extent | ±230 mm of board in x and y (a little past the 225.5 mm edge, so a miss is still in view): 0.898 mm per pixel |
+| Orientation | bull at the centre, the 20 straight up, board +y pointing to image −y |
+| Warp | `rect = S · toBoard`, with `S = [[512/460, 0, 256], [0, −512/460, 256], [0, 0, 1]]` taking board mm to pixels |
+| Resampling | bilinear; if the warp shrinks the photograph by more than 1.5× at the bull, the photograph is first downscaled with area averaging to about 1.5× the final scale |
+
+The tip model's outputs are on a 128 × 128 grid (stride 4): a tip is at
+`((ix + offset_x) · 4, (iy + offset_y) · 4)` in rectified pixels, and
+`S⁻¹` of that is board millimetres, ready for `scoreAt`.
+
 ### Occlusion: the part that actually matters
 
 Four mechanisms, in order of how much they buy:
