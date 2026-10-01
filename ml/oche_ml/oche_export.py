@@ -146,6 +146,8 @@ def load_export(path: str | Path, tolerance_mm: float = 0.05) -> tuple[list[Samp
                     # corrected, a person saw its answer): fine to learn from,
                     # never fine to test on.
                     "model_involved": bool(frame.get("model")) or any(d.get("by") == "model" for d in darts),
+                    # A person opened it again in the review screen and confirmed every mark.
+                    "reviewed": bool(frame.get("reviewed")),
                 },
             )
         )

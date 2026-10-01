@@ -113,3 +113,25 @@ def test_one_model_marked_photograph_sends_its_whole_visit_to_train(synthetic_ex
     samples[-1].meta["model_involved"] = True
     parts = sources.split(samples)
     assert len(parts["train"]) == len(samples) and not parts["test"]
+
+
+def test_reviewed_only_keeps_the_photographs_a_person_checked(synthetic_export, tmp_path):
+    import argparse
+    import json
+    import zipfile
+
+    from oche_ml import sources
+
+    checked = tmp_path / "checked.zip"
+    with zipfile.ZipFile(synthetic_export) as src, zipfile.ZipFile(checked, "w") as dst:
+        labels = json.loads(src.read("labels.json"))
+        labels["frames"][0]["reviewed"] = True
+        for item in src.namelist():
+            if item != "labels.json":
+                dst.writestr(item, src.read(item))
+        dst.writestr("labels.json", json.dumps(labels))
+
+    everything = sources.load(argparse.Namespace(oche=[str(checked)], deepdarts=None, reviewed_only=False), verbose=False)
+    reviewed = sources.load(argparse.Namespace(oche=[str(checked)], deepdarts=None, reviewed_only=True), verbose=False)
+    assert len(everything) == 3 and len(reviewed) == 1
+    assert reviewed[0].meta["reviewed"] is True

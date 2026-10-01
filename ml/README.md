@@ -38,7 +38,9 @@ ml/data/oche/        your exports from the app: oche-captures-YYYY-MM-DD.zip
 ml/data/deepdarts/   the DeepDarts dataset, unpacked (labels.pkl + cropped_images/)
 ```
 
-**Your exports.** In the app: Camera setup → Export. Keep every export; later
+**Your exports.** In the app: Camera setup → Export. Check them first in
+"Review photographs": a photograph confirmed there is exported with
+`"reviewed": true`, and `--reviewed-only` trains on those alone. Keep every export; later
 ones repeat earlier frames and the loader keeps each frame once. Frames are
 checked on load: a label whose homography or score disagrees with itself is
 rejected, and so is a game report with a dart left unplaced.

@@ -8,6 +8,7 @@ import { Landing } from './screens/Landing.js';
 import { Lobby } from './screens/Lobby.js';
 import { ModeChoice } from './screens/ModeChoice.js';
 import { PairHub } from './screens/PairHub.js';
+import { Review } from './screens/Review.js';
 import { RoleChoice } from './screens/RoleChoice.js';
 import { Setup } from './screens/Setup.js';
 import { Stats } from './screens/Stats.js';
@@ -59,6 +60,8 @@ export function App() {
       return <ModeChoice />;
     case 'lobby':
       return <Lobby />;
+    case 'review':
+      return <Review />;
     case 'pairRole':
       return <RoleChoice />;
     case 'pair':

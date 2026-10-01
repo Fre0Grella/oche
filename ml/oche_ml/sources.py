@@ -14,6 +14,7 @@ from .samples import Sample, split_of
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--oche", nargs="*", default=[], help="capture-lab exports: zips or unzipped folders")
     parser.add_argument("--deepdarts", default=None, help="the DeepDarts dataset folder (holds labels.pkl)")
+    parser.add_argument("--reviewed-only", action="store_true", help="of your own photographs, use only those confirmed in the app's review screen")
 
 
 def load(args: argparse.Namespace, verbose: bool = True) -> list[Sample]:
@@ -25,6 +26,11 @@ def load(args: argparse.Namespace, verbose: bool = True) -> list[Sample]:
         loaded, report = load_export(Path(path))
         # The same frame arrives again in every later export; keep it once.
         fresh = [s for s in loaded if s.key not in seen]
+        if getattr(args, "reviewed_only", False):
+            unchecked = [s for s in fresh if not s.meta.get("reviewed")]
+            fresh = [s for s in fresh if s.meta.get("reviewed")]
+            if verbose and unchecked:
+                print(f"{path}: left out {len(unchecked)} photographs not yet reviewed")
         seen.update(s.key for s in fresh)
         samples += fresh
         if verbose:

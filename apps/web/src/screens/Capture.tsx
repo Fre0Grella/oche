@@ -122,6 +122,7 @@ const BLIND_SHARE = 0.2;
 export function Capture() {
   const t = useStrings();
   const goHome = useMatchStore((s) => s.goHome);
+  const setScreen = useMatchStore((s) => s.setScreen);
   const calibration = useMatchStore((s) => s.settings.calibration);
   const saveCalibration = useMatchStore((s) => s.saveCalibration);
   const callerEnabled = useMatchStore((s) => s.settings.callerEnabled);
@@ -891,6 +892,9 @@ export function Capture() {
         <div className="controls">
           <button type="button" className="chip" onClick={() => void exportAll()} disabled={busy || stats.total === 0}>
             {stats.total === 0 ? t.capture.exportEmpty : t.capture.export}
+          </button>
+          <button type="button" className="chip" onClick={() => setScreen('review')} disabled={stats.total === 0}>
+            {t.review.open}
           </button>
           <button type="button" className="chip" onClick={() => void deleteAll()} disabled={stats.total === 0}>
             {confirmDelete ? t.capture.deleteAllConfirm : t.capture.deleteAll}

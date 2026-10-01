@@ -1208,3 +1208,45 @@ input {
   width: 100%;
   min-height: 48px;
 }
+
+/* ---------- review ---------- */
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.review-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--radius) - 4px);
+  background: #000;
+}
+
+.review-card-line {
+  font-weight: 700;
+}
+
+.review-card-tags {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}

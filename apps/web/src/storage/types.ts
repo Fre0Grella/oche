@@ -73,6 +73,12 @@ export interface CapturedFrame {
   reported?: { hits: string[]; dartIds: string[]; source: string };
   /** The model that proposed marks on this frame, if any did. */
   model?: string;
+  /**
+   * A person opened this frame afterwards, looked at every mark and said it is
+   * right. The strongest label there is: checked twice, the second time with
+   * nothing else going on.
+   */
+  reviewed?: boolean;
   note?: string;
 }
 

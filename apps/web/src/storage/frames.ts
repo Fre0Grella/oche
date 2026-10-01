@@ -106,6 +106,8 @@ Each label entry holds:
                       it scores, and by: "model" when the autoscorer proposed
                       the mark and a person let it stand (absent: a person)
   model               the model that proposed marks on this frame, if any
+  reviewed            true when a person opened the frame afterwards in the
+                      review screen and confirmed every mark
   reported            what the app believed when the frame was reported as wrong,
                       with the dart event ids it refers to
 
@@ -130,6 +132,7 @@ interface ExportedFrame {
   darts: { img: Point; board: Point; hit: Hit; by?: 'person' | 'model' }[];
   reported?: { hits: string[]; dartIds: string[]; source: string };
   model?: string;
+  reviewed?: boolean;
   note?: string;
 }
 
@@ -158,6 +161,7 @@ export async function exportFrames(frames: readonly CapturedFrame[]): Promise<Bl
       darts: frame.darts,
       ...(frame.reported ? { reported: frame.reported } : {}),
       ...(frame.model ? { model: frame.model } : {}),
+      ...(frame.reviewed ? { reviewed: true } : {}),
       ...(frame.note ? { note: frame.note } : {}),
     });
   }

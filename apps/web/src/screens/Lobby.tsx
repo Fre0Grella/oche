@@ -112,6 +112,9 @@ export function Lobby() {
         <button type="button" className="chip" onClick={() => setScreen('capture')}>
           {calibration ? t.lobby.camera : t.lobby.cameraFirst}
         </button>
+        <button type="button" className="chip" onClick={() => setScreen('review')}>
+          {t.review.open}
+        </button>
         <button type="button" className="chip" onClick={() => setScreen('history')}>
           {t.lobby.history}
         </button>
