@@ -6,12 +6,18 @@ export function ModeChoice() {
   const t = useStrings();
   const setScreen = useMatchStore((s) => s.setScreen);
   const setMode = useMatchStore((s) => s.setMode);
+  const enterLobby = useMatchStore((s) => s.enterLobby);
 
   const choose = (mode: 'solo' | 'paired') => {
+    // Solo needs nothing more: straight into the lobby. Two devices means one
+    // more question — which one is this? — asked on its own screen, with
+    // pictures; the lobby opens once the phone is connected.
+    if (mode === 'solo') {
+      enterLobby('solo');
+      return;
+    }
     setMode(mode);
-    // Two devices means one more question — which one is this? — and it is
-    // asked on its own screen, with pictures, rather than in a link nobody sees.
-    setScreen(mode === 'solo' ? 'setup' : 'pairRole');
+    setScreen('pairRole');
   };
 
   return (

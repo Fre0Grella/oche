@@ -21,7 +21,7 @@ describe('the app', () => {
     useMatchStore.setState({ ready: false, screen: 'landing' });
   });
 
-  it('goes landing → mode → setup → game, and scores', async () => {
+  it('goes landing → mode → lobby → setup → game, and scores', async () => {
     render(<App />);
 
     // It opens by explaining what it is, not by dropping you into a leg.
@@ -33,8 +33,12 @@ describe('the app', () => {
     expect(screen.getByLabelText(/phone as the camera/i)).toBeDefined();
 
     await press(/use one device/i);
-    await waitFor(() => expect(useMatchStore.getState().screen).toBe('setup'));
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('lobby'));
     expect(useMatchStore.getState().mode).toBe('solo');
+    expect(useMatchStore.getState().session).toBe('solo');
+
+    await press(/new game/i);
+    await waitFor(() => expect(useMatchStore.getState().screen).toBe('setup'));
 
     // A profile, which keeps its statistics…
     await press(/new profile/i);

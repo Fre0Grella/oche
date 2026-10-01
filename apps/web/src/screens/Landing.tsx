@@ -5,6 +5,7 @@ export function Landing() {
   const t = useStrings();
   const setScreen = useMatchStore((s) => s.setScreen);
   const match = useMatchStore((s) => s.match);
+  const session = useMatchStore((s) => s.session);
   const inProgress = match !== null && !match.finished && match.events.length > 0;
 
   return (
@@ -15,14 +16,19 @@ export function Landing() {
       </header>
 
       <div className="landing-cta">
+        {session && (
+          <button type="button" className="primary" onClick={() => setScreen('lobby')}>
+            {t.lobby.back}
+          </button>
+        )}
         {inProgress && (
-          <button type="button" className="primary" onClick={() => setScreen('game')}>
+          <button type="button" className={session ? 'chip' : 'primary'} onClick={() => setScreen('game')}>
             {t.landing.resume}
           </button>
         )}
         <button
           type="button"
-          className={inProgress ? 'chip' : 'primary'}
+          className={inProgress || session ? 'chip' : 'primary'}
           onClick={() => setScreen('mode')}
         >
           {t.landing.cta}

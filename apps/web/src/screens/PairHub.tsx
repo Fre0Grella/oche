@@ -22,6 +22,7 @@ export function PairHub() {
   const t = useStrings();
   const setScreen = useMatchStore((s) => s.setScreen);
   const setPairing = useMatchStore((s) => s.setPairing);
+  const enterLobby = useMatchStore((s) => s.enterLobby);
   const paired = useMatchStore((s) => s.pairing);
 
   const [step, setStep] = useState<Step>(paired ? 'connected' : 'intro');
@@ -65,7 +66,8 @@ export function PairHub() {
 
       hosted.connection.onStream = (stream) => {
         setPairing(hosted.connection, stream);
-        setStep('connected');
+        // Paired: the lobby takes it from here, and keeps it.
+        enterLobby('paired');
       };
       hosted.connection.onState = (state) => {
         if (state === 'failed') setStep('failed');
@@ -194,11 +196,8 @@ export function PairHub() {
             <span className="coach-message">{t.pair.connected}</span>
           </div>
           <div className="controls">
-            <button type="button" className="primary" onClick={() => setScreen('capture')}>
-              {t.pair.setUpCamera}
-            </button>
-            <button type="button" className="chip" onClick={() => setScreen('setup')}>
-              {t.pair.straightToGame}
+            <button type="button" className="primary" onClick={() => enterLobby('paired')}>
+              {t.lobby.back}
             </button>
           </div>
         </>
@@ -216,8 +215,12 @@ export function PairHub() {
       )}
 
       <div className="screen-actions">
-        <button type="button" className="chip" onClick={() => setScreen('pairRole')}>
-          {t.pair.back}
+        <button
+          type="button"
+          className="chip"
+          onClick={() => (paired ? enterLobby('paired') : setScreen('pairRole'))}
+        >
+          {paired ? t.lobby.back : t.pair.back}
         </button>
       </div>
     </div>

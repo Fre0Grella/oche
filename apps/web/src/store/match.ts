@@ -36,13 +36,46 @@ import {
   type StoredMatch,
 } from '../storage/db.js';
 
-import type { PairingConnection } from '../pairing/session.js';
+import type { PairState, PairingConnection } from '../pairing/session.js';
 import { hashForScreen, type Screen } from '../route.js';
 
 export type { Screen };
 
 /** Solo: the phone does everything. Paired: a phone films, a laptop thinks. */
 export type PlayMode = 'solo' | 'paired';
+
+/** What the paired phone last said about itself. */
+export interface PhoneStatus {
+  battery?: number;
+  charging?: boolean;
+  width?: number;
+  height?: number;
+}
+
+/**
+ * Remembered for the tab only, so a reload can say "you were paired, the phone
+ * is gone" instead of pretending nothing happened. The connection itself
+ * cannot survive a reload.
+ */
+const SESSION_KEY = 'oche.session';
+
+function rememberSession(session: PlayMode | null): void {
+  try {
+    if (session) sessionStorage.setItem(SESSION_KEY, session);
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    // No storage (private window, tests): the lobby simply starts fresh.
+  }
+}
+
+function recalledSession(): PlayMode | null {
+  try {
+    const value = sessionStorage.getItem(SESSION_KEY);
+    return value === 'solo' || value === 'paired' ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface ThrowOptions {
   pos?: Point;
@@ -71,6 +104,14 @@ interface MatchState {
   pairing: PairingConnection | null;
   /** The video coming from the paired phone. */
   remoteStream: MediaStream | null;
+  /**
+   * The lobby's session: set once a mode is chosen (and, for two devices, the
+   * phone is connected). While there is one, every screen goes back to the
+   * lobby rather than to the landing page, so nobody pairs twice by accident.
+   */
+  session: PlayMode | null;
+  pairState: PairState | null;
+  phone: PhoneStatus | null;
 
   init: (screen?: Screen) => Promise<void>;
   setScreen: (screen: Screen) => void;
@@ -96,6 +137,12 @@ interface MatchState {
   setMode: (mode: PlayMode) => void;
   setPairing: (pairing: PairingConnection, stream: MediaStream) => void;
   clearPairing: () => void;
+  /** Starts a lobby session in this mode and opens the lobby. */
+  enterLobby: (mode: PlayMode) => void;
+  /** Ends the session (and any pairing) and goes back to the landing page. */
+  leaveLobby: () => void;
+  /** Where "back" goes: the lobby during a session, the landing page otherwise. */
+  goHome: () => void;
 }
 
 function newId(): string {
@@ -140,6 +187,9 @@ export const useMatchStore = create<MatchState>((set, get) => {
     mode: 'solo',
     pairing: null,
     remoteStream: null,
+    session: null,
+    pairState: null,
+    phone: null,
 
     async init(screen) {
       const [settings, matches, profiles] = await Promise.all([
@@ -188,8 +238,11 @@ export const useMatchStore = create<MatchState>((set, get) => {
       // A match in progress is resumed, but the landing page still comes first
       // unless the address says otherwise: arriving at oche should explain what
       // it is before it drops you into someone else's half-finished leg.
-      const resolved: Screen = screen ?? 'landing';
+      const recalled = recalledSession();
+      const resolved: Screen = screen ?? (recalled ? 'lobby' : 'landing');
       set({
+        session: recalled,
+        mode: recalled ?? 'solo',
         ready: true,
         settings,
         history: matches,
@@ -369,13 +422,47 @@ export const useMatchStore = create<MatchState>((set, get) => {
     },
 
     setPairing(pairing, remoteStream) {
-      set({ pairing, remoteStream, mode: 'paired' });
+      set({ pairing, remoteStream, mode: 'paired', pairState: pairing.state, phone: null });
+      // From here on the store owns the connection, and the lobby shows how it
+      // is doing: the screen that paired it may be long gone.
+      pairing.onState = (state) => {
+        if (get().pairing === pairing) set({ pairState: state });
+      };
+      pairing.onMessage = (message) => {
+        if (get().pairing !== pairing) return;
+        if (message.type === 'bye') set({ pairState: 'closed' });
+        if (message.type === 'status') {
+          const { battery, charging, width, height } = message;
+          set({ phone: { battery, charging, width, height } });
+        }
+      };
     },
 
     clearPairing() {
       const { pairing } = get();
-      pairing?.close();
-      set({ pairing: null, remoteStream: null });
+      if (pairing) {
+        pairing.onState = null;
+        pairing.onMessage = null;
+        pairing.close();
+      }
+      set({ pairing: null, remoteStream: null, pairState: null, phone: null });
+    },
+
+    enterLobby(mode) {
+      set({ session: mode, mode });
+      rememberSession(mode);
+      get().setScreen('lobby');
+    },
+
+    leaveLobby() {
+      get().clearPairing();
+      set({ session: null, mode: 'solo' });
+      rememberSession(null);
+      get().setScreen('landing');
+    },
+
+    goHome() {
+      get().setScreen(get().session ? 'lobby' : 'landing');
     },
   };
 });

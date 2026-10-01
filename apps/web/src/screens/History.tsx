@@ -8,7 +8,7 @@ export function History() {
   const history = useMatchStore((s) => s.history);
   const resume = useMatchStore((s) => s.resumeMatch);
   const remove = useMatchStore((s) => s.removeMatch);
-  const setScreen = useMatchStore((s) => s.setScreen);
+  const goHome = useMatchStore((s) => s.goHome);
 
   return (
     <div className="screen screen-history">
@@ -60,7 +60,7 @@ export function History() {
       </ul>
 
       <div className="screen-actions">
-        <button type="button" className="chip" onClick={() => setScreen('setup')}>
+        <button type="button" className="chip" onClick={goHome}>
           {t.history.back}
         </button>
       </div>

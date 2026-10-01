@@ -1193,3 +1193,18 @@ input {
   font-weight: 400;
   color: var(--text-dim);
 }
+
+/* ---------- lobby ---------- */
+
+.lobby-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 420px);
+  margin: 0 auto;
+}
+
+.lobby-menu > button {
+  width: 100%;
+  min-height: 48px;
+}

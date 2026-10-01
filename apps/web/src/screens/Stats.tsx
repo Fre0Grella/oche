@@ -58,7 +58,7 @@ function number(value: number, digits = 1): string {
 
 export function Stats() {
   const t = useStrings();
-  const setScreen = useMatchStore((s) => s.setScreen);
+  const goHome = useMatchStore((s) => s.goHome);
   const history = useMatchStore((s) => s.history);
   const refreshHistory = useMatchStore((s) => s.refreshHistory);
   const profiles = useMatchStore((s) => s.profiles);
@@ -149,7 +149,7 @@ export function Stats() {
           <p>{t.stats.empty}</p>
         </header>
         <div className="screen-actions">
-          <button type="button" className="chip" onClick={() => setScreen('landing')}>
+          <button type="button" className="chip" onClick={goHome}>
             {t.stats.back}
           </button>
         </div>
@@ -402,7 +402,7 @@ export function Stats() {
       )}
 
       <div className="screen-actions">
-        <button type="button" className="chip" onClick={() => setScreen('landing')}>
+        <button type="button" className="chip" onClick={goHome}>
           {t.stats.back}
         </button>
       </div>

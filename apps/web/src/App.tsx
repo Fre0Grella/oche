@@ -5,6 +5,7 @@ import { CameraRole } from './screens/CameraRole.js';
 import { Game } from './screens/Game.js';
 import { History } from './screens/History.js';
 import { Landing } from './screens/Landing.js';
+import { Lobby } from './screens/Lobby.js';
 import { ModeChoice } from './screens/ModeChoice.js';
 import { PairHub } from './screens/PairHub.js';
 import { RoleChoice } from './screens/RoleChoice.js';
@@ -56,6 +57,8 @@ export function App() {
       return <Landing />;
     case 'mode':
       return <ModeChoice />;
+    case 'lobby':
+      return <Lobby />;
     case 'pairRole':
       return <RoleChoice />;
     case 'pair':

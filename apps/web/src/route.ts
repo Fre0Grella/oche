@@ -9,6 +9,7 @@
 export type Screen =
   | 'landing'
   | 'mode'
+  | 'lobby'
   | 'setup'
   | 'game'
   | 'history'
@@ -21,6 +22,7 @@ export type Screen =
 const HASHES: Record<Screen, string> = {
   landing: '#/',
   mode: '#/play',
+  lobby: '#/lobby',
   setup: '#/new',
   game: '#/game',
   history: '#/history',

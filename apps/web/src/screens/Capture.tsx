@@ -121,7 +121,7 @@ const BLIND_SHARE = 0.2;
 
 export function Capture() {
   const t = useStrings();
-  const setScreen = useMatchStore((s) => s.setScreen);
+  const goHome = useMatchStore((s) => s.goHome);
   const calibration = useMatchStore((s) => s.settings.calibration);
   const saveCalibration = useMatchStore((s) => s.saveCalibration);
   const callerEnabled = useMatchStore((s) => s.settings.callerEnabled);
@@ -535,7 +535,7 @@ export function Capture() {
     }
     setLeaving(null);
     if (where === 'done') setMode('setup');
-    else setScreen('landing');
+    else goHome();
   };
 
   useEffect(

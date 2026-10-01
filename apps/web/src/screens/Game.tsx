@@ -20,6 +20,8 @@ export function Game() {
   const toggleCaller = useMatchStore((s) => s.toggleCaller);
   const setEntryMode = useMatchStore((s) => s.setEntryMode);
   const setScreen = useMatchStore((s) => s.setScreen);
+  const goHome = useMatchStore((s) => s.goHome);
+  const session = useMatchStore((s) => s.session);
 
   /** id of the dart being corrected, if any. */
   const [correcting, setCorrecting] = useState<string | null>(null);
@@ -131,6 +133,11 @@ export function Game() {
         <button type="button" className="chip" onClick={() => setScreen('setup')}>
           {t.game.newMatch}
         </button>
+        {session && (
+          <button type="button" className="chip" onClick={goHome}>
+            {t.lobby.back}
+          </button>
+        )}
       </div>
 
       {settings.entryMode === 'board' && !finished && <p className="hint">{t.game.sourceNote}</p>}

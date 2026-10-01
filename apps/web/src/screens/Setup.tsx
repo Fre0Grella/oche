@@ -26,6 +26,8 @@ export function Setup() {
   const t = useStrings();
   const startMatch = useMatchStore((s) => s.startMatch);
   const setScreen = useMatchStore((s) => s.setScreen);
+  const goHome = useMatchStore((s) => s.goHome);
+  const session = useMatchStore((s) => s.session);
   const hasHistory = useMatchStore((s) => s.history.length > 0);
   const profiles = useMatchStore((s) => s.profiles);
   const createProfile = useMatchStore((s) => s.createProfile);
@@ -341,6 +343,9 @@ export function Setup() {
         </button>
         <button type="button" className="chip" onClick={() => setScreen('capture')}>
           {t.capture.title}
+        </button>
+        <button type="button" className="chip" onClick={goHome}>
+          {session ? t.lobby.back : t.capture.back}
         </button>
       </div>
     </div>
