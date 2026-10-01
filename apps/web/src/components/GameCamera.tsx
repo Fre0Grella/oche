@@ -274,7 +274,17 @@ export function GameCamera({ matchId, darts, visitComplete, onCorrect }: GameCam
             <h2>{t.report.title}</h2>
             <p className="hint">{t.report.help}</p>
 
-            <div className="stage" style={{ aspectRatio: `${latest.width} / ${latest.height}` }}>
+            <div
+              className="stage report-stage"
+              style={{
+                aspectRatio: `${latest.width} / ${latest.height}`,
+                // The card is height-capped, and a flex item with its height
+                // taken away keeps its width: the photograph came out squashed
+                // towards a square. Size it from the height that is left
+                // instead, the way the live preview does.
+                maxWidth: `calc((92vh - 260px) * ${(latest.width / latest.height).toFixed(4)})`,
+              }}
+            >
               <img className="stage-frozen" src={frameUrl} alt="" />
               <BoardOverlay
                 width={latest.width}

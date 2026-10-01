@@ -578,6 +578,13 @@ input {
   align-items: stretch;
 }
 
+/* Never shrunk by the card: the box carries the photograph's aspect ratio, and
+   squeezing it distorts the picture. Its size comes from max-width instead. */
+.report-stage {
+  flex-shrink: 0;
+  margin: 0 auto;
+}
+
 /* ---------- setup coach ---------- */
 
 .coach {
