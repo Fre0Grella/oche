@@ -28,13 +28,19 @@ export interface BoardOverlayProps {
   /** Draggable calibration landmarks. */
   handles?: OverlayHandle[];
   onHandleMove?: (index: number, point: Point) => void;
-  /** Dart markers, already in image pixels. */
-  darts?: { img: Point; label: string; active?: boolean }[];
+  /**
+   * Dart markers, already in image pixels. `kind` tells a person's marks
+   * apart: carried from an earlier photograph (grey), placed on this one
+   * (yellow), or proposed by the model and not yet confirmed (blue, dashed).
+   */
+  darts?: { img: Point; label: string; active?: boolean; kind?: 'carried' | 'new' | 'proposed' }[];
   onDartMove?: (index: number, point: Point) => void;
   /** Tapping empty space, in image pixels. */
   onTap?: (point: Point) => void;
   dim?: boolean;
 }
+
+const MARK_COLOUR = { carried: '#9aa4b2', new: '#ffd166', proposed: '#5ad1ff', plain: '#ffffff' } as const;
 
 type Drag = { kind: 'handle' | 'dart'; index: number } | null;
 
@@ -186,8 +192,9 @@ export function BoardOverlay({
             cy={dart.img.y}
             r={unit * 1.9}
             fill="none"
-            stroke={dart.active ? '#ffd166' : '#ffffff'}
+            stroke={MARK_COLOUR[dart.kind ?? (dart.active ? 'new' : 'plain')]}
             strokeWidth={unit * 0.3}
+            strokeDasharray={dart.kind === 'proposed' ? `${unit * 0.8} ${unit * 0.5}` : undefined}
           />
           <text
             x={dart.img.x}

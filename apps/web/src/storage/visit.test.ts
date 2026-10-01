@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LabelledDart } from './types.js';
-import { DARTS_PER_VISIT, carriedInto, inBoardAfter, newDarts, proposalsBeside, worthSaving } from './visit.js';
+import { DARTS_PER_VISIT, carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worthSaving } from './visit.js';
 
 function dart(x: number): LabelledDart {
   return { img: { x, y: x }, board: { x: x / 10, y: 0 }, hit: { sector: 20, ring: 'single', value: 20 } };
@@ -51,5 +51,17 @@ describe('proposals from the model', () => {
     expect(worthSaving({ edited: false, proposed: 1, darts: [1] })).toBe(true);
     expect(worthSaving({ edited: false, proposed: 0, darts: [1] })).toBe(false);
     expect(worthSaving({ edited: true, proposed: 0, darts: [] })).toBe(false);
+  });
+});
+
+describe('a new photograph while one is open', () => {
+  it('replaces a photograph nobody has touched', () => {
+    expect(onNewPhoto(null)).toBe('replace');
+    expect(onNewPhoto({ edited: false, proposed: 0, darts: [1] })).toBe('replace');
+  });
+
+  it('waits behind one that has marks, instead of saving it', () => {
+    expect(onNewPhoto({ edited: true, proposed: 0, darts: [1] })).toBe('wait');
+    expect(onNewPhoto({ edited: false, proposed: 1, darts: [1] })).toBe('wait');
   });
 });

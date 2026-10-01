@@ -21,9 +21,11 @@
  * The darts are not pulled between throws, because a model has to learn the
  * second and third dart of a visit with the first ones in the way. So each
  * photograph opens with the darts already in the board marked where they were
- * (see `storage/visit.ts`), only the new one is left to tap, and nothing saves
- * itself until the next throw or "save": a frame with a visible dart unmarked
- * would teach the model that a dart is background.
+ * (see `storage/visit.ts`), only the new one is left to tap, and nothing is
+ * ever saved except by pressing Save: a frame with a visible dart unmarked, or
+ * a model's guess nobody checked, would teach the model something wrong. A
+ * settle — any moment the board goes still — never saves; a newer photograph
+ * waits behind one that is being marked.
  */
 
 import {
@@ -52,7 +54,7 @@ import {
   type LabelledDart,
 } from '../storage/frames.js';
 import { storageEstimate } from '../storage/db.js';
-import { carriedInto, inBoardAfter, newDarts, proposalsBeside, worthSaving } from '../storage/visit.js';
+import { carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worthSaving } from '../storage/visit.js';
 import { useMatchStore } from '../store/match.js';
 import { cameraSupported, type GrabbedFrame } from '../vision/camera.js';
 import { loadDetector, type Detector } from '../vision/detector.js';
@@ -140,7 +142,14 @@ export function Capture() {
   /** The darts in the board as of the last saved photograph. */
   const [inBoard, setInBoard] = useState<LabelledDart[]>([]);
   const [detector, setDetector] = useState<Detector | null>(null);
-  const [proposing, setProposing] = useState(true);
+  // Off until a model has been tested on this board (issue #5): a proposal
+  // from one that has not marks flights as often as tips.
+  const [proposing, setProposing] = useState(false);
+  /** The newest photograph, held back while the one on screen is being marked. */
+  const [waiting, setWaiting] = useState<GrabbedFrame | null>(null);
+  /** Leaving with marks on screen that are not saved: ask first. */
+  const [leaving, setLeaving] = useState<'done' | 'back' | null>(null);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
   /** Photographs where the model proposed: let stand, or corrected. */
   const [verdicts, setVerdicts] = useState({ right: 0, corrected: 0 });
 
@@ -157,6 +166,8 @@ export function Capture() {
   pendingRef.current = pending;
   const inBoardRef = useRef(inBoard);
   inBoardRef.current = inBoard;
+  const waitingRef = useRef(waiting);
+  waitingRef.current = waiting;
   const detectorRef = useRef(detector);
   detectorRef.current = proposing ? detector : null;
   /** Whether the model is kept out of the current visit; rolled when a visit starts. */
@@ -182,6 +193,7 @@ export function Capture() {
    */
   const savePending = useCallback(async () => {
     const frame = pendingRef.current;
+    setLeaving(null);
     const current = calibrationRef.current;
     pendingRef.current = null;
     setPending(null);
@@ -226,8 +238,33 @@ export function Capture() {
     URL.revokeObjectURL(frame.url);
     await putFrame(stored);
     setLastSaved({ id: stored.id, added: newDarts(frame.darts, frame.carried).length, inBoardBefore: before });
+    setSavedNote(
+      fill(t.capture.savedNote, {
+        n: frame.darts.length,
+        hits: frame.darts.map((dart) => formatHit(dart.hit)).join(', '),
+      }),
+    );
     void refreshStats();
-  }, [refreshStats]);
+    openWaiting();
+  }, [refreshStats, t]);
+
+  /** Drops the photograph on screen without saving it. */
+  const discardPending = useCallback(() => {
+    const frame = pendingRef.current;
+    pendingRef.current = null;
+    setPending(null);
+    setLeaving(null);
+    if (frame) URL.revokeObjectURL(frame.url);
+    openWaiting();
+  }, []);
+
+  /** The photograph that waited behind the last one, now that it is done with. */
+  function openWaiting() {
+    const next = waitingRef.current;
+    waitingRef.current = null;
+    setWaiting(null);
+    if (next) openFrameRef.current(next);
+  }
 
   const openFrame = useCallback((grabbed: GrabbedFrame) => {
     const carried = carriedInto(inBoardRef.current);
@@ -237,20 +274,23 @@ export function Capture() {
     if (inBoardRef.current.length === 0) blindVisitRef.current = Math.random() < BLIND_SHARE;
     const blind = model !== null && blindVisitRef.current;
     const checking = model !== null && current !== null && !blind;
-    setPending((previous) => {
-      if (previous) URL.revokeObjectURL(previous.url);
-      return {
-        grabbed,
-        url: URL.createObjectURL(grabbed.jpeg),
-        darts: carried,
-        carried: carried.length,
-        edited: false,
-        proposed: 0,
-        checking,
-        blind,
-        ...(model ? { model: model.manifest.name } : {}),
-      };
-    });
+    const previous = pendingRef.current;
+    if (previous) URL.revokeObjectURL(previous.url);
+    const opened: PendingFrame = {
+      grabbed,
+      url: URL.createObjectURL(grabbed.jpeg),
+      darts: carried,
+      carried: carried.length,
+      edited: false,
+      proposed: 0,
+      checking,
+      blind,
+      ...(model ? { model: model.manifest.name } : {}),
+    };
+    // The ref moves now, not on the next render: a fast model can answer
+    // before React has drawn the photograph, and its answer must still find it.
+    pendingRef.current = opened;
+    setPending(opened);
     if (!checking || !model || !current) return;
 
     void model
@@ -274,11 +314,13 @@ export function Capture() {
         }
       });
   }, [t]);
+  const openFrameRef = useRef(openFrame);
+  openFrameRef.current = openFrame;
 
   /**
-   * A settled frame becomes the one on screen to mark. The one before it is
-   * saved if it was marked and dropped if not: the newest photograph of the
-   * board is the one with the dart you just threw in it.
+   * A settled frame becomes the one on screen to mark, unless someone is
+   * marking the one there now: then it waits, and opens after Save or Skip.
+   * Nothing is ever saved here (issue #3).
    */
   const onSettle = useCallback(
     (grabbed: GrabbedFrame) => {
@@ -287,11 +329,14 @@ export function Capture() {
       if (!current) return;
       if (current.width !== grabbed.width || current.height !== grabbed.height) return;
 
-      const previous = pendingRef.current;
-      if (previous && worthSaving(previous)) void savePending().then(() => openFrame(grabbed));
-      else openFrame(grabbed);
+      if (onNewPhoto(pendingRef.current) === 'wait') {
+        waitingRef.current = grabbed;
+        setWaiting(grabbed);
+        return;
+      }
+      openFrame(grabbed);
     },
-    [openFrame, savePending],
+    [openFrame],
   );
 
   const region = useMemo(
@@ -402,6 +447,7 @@ export function Capture() {
 
     setMarked((list) => [...list, { hit: dart.hit, id: newId() }]);
     setPending((frame) => (frame ? { ...frame, darts: [...frame.darts, dart], edited: true } : frame));
+    setSavedNote(null);
   };
 
   /**
@@ -451,12 +497,12 @@ export function Capture() {
     );
   };
 
-  // Leaving the screen, or the mode, must not lose a dart already marked.
+  // Unmounting cannot ask, so it saves nothing: Back asks first (see leave()).
   useEffect(
     () => () => {
-      if (pendingRef.current?.edited) void savePending();
+      if (pendingRef.current) URL.revokeObjectURL(pendingRef.current.url);
     },
-    [savePending],
+    [],
   );
 
   useEffect(() => {
@@ -474,10 +520,23 @@ export function Capture() {
   // be out, or the camera recalibrated, and a carried mark would be a ghost.
   useEffect(() => {
     if (mode === 'try') return;
-    if (pendingRef.current) void savePending();
+    if (pendingRef.current) discardPending();
+    waitingRef.current = null;
+    setWaiting(null);
     inBoardRef.current = [];
     setInBoard([]);
-  }, [mode, savePending]);
+  }, [mode, discardPending]);
+
+  /** Done or Back: straight away, unless there are marks nobody saved. */
+  const leave = (where: 'done' | 'back') => {
+    if (pendingRef.current && worthSaving(pendingRef.current)) {
+      setLeaving(where);
+      return;
+    }
+    setLeaving(null);
+    if (where === 'done') setMode('setup');
+    else setScreen('landing');
+  };
 
   useEffect(
     () => () => {
@@ -527,7 +586,10 @@ export function Capture() {
       const hits = pending.darts.slice(-pending.proposed).map((dart) => formatHit(dart.hit));
       return fill(t.capture.proposal, { hits: hits.join(', ') });
     }
-    if (pending.darts.length > pending.carried) return t.capture.tapAnother;
+    const fresh = pending.darts.length - pending.carried;
+    if (fresh > 0) {
+      return fill(t.capture.markedSoFar, { carried: pending.carried, fresh, total: pending.darts.length });
+    }
     return pending.carried > 0 ? fill(t.capture.tapTheNewDart, { n: pending.carried }) : t.capture.tapTheDart;
   }
 
@@ -580,9 +642,10 @@ export function Capture() {
           }
           darts={
             mode === 'try' && pending
-              ? pending.darts.map((dart) => ({
+              ? pending.darts.map((dart, index) => ({
                   img: dart.img,
                   label: dart.by === 'model' ? `${formatHit(dart.hit)}?` : formatHit(dart.hit),
+                  kind: index < pending.carried ? ('carried' as const) : dart.by === 'model' ? ('proposed' as const) : ('new' as const),
                 }))
               : []
           }
@@ -658,7 +721,43 @@ export function Capture() {
             </div>
           )}
 
-          <p className="hint">{t.capture.tryHelp}</p>
+          <p className="hint">
+            <b>{t.capture.markEveryDart}</b> {t.capture.tryHelp}
+          </p>
+          {savedNote && <p className="hint">{savedNote}</p>}
+          {waiting && <p className="warning">{t.capture.photoWaiting}</p>}
+          {leaving && (
+            <div className="panel" role="alertdialog" aria-label={t.capture.unsavedTitle}>
+              <p>{t.capture.unsavedTitle}</p>
+              <div className="controls">
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={async () => {
+                    const where = leaving;
+                    await savePending();
+                    leave(where);
+                  }}
+                >
+                  {t.capture.unsavedSave}
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    const where = leaving;
+                    discardPending();
+                    leave(where);
+                  }}
+                >
+                  {t.capture.unsavedDiscard}
+                </button>
+                <button type="button" className="chip" onClick={() => setLeaving(null)}>
+                  {t.capture.unsavedStay}
+                </button>
+              </div>
+            </div>
+          )}
 
           {detector && (
             <section className="panel">
@@ -694,9 +793,14 @@ export function Capture() {
               onClick={() => void savePending()}
               disabled={!pending || !worthSaving(pending)}
             >
-              {pending && pending.darts.length > 0
-                ? fill(t.capture.saveFrame, { n: pending.darts.length })
-                : t.capture.saveFrameEmpty}
+              {pending && pending.proposed > 0 && !pending.edited
+                ? t.capture.saveProposal
+                : pending && pending.darts.length > 0
+                  ? fill(t.capture.saveFrame, { n: pending.darts.length })
+                  : t.capture.saveFrameEmpty}
+            </button>
+            <button type="button" className="chip" onClick={discardPending} disabled={!pending}>
+              {t.capture.skipPhoto}
             </button>
             <button
               type="button"
@@ -725,7 +829,7 @@ export function Capture() {
             >
               {t.capture.undo}
             </button>
-            <button type="button" className="chip" onClick={() => setMode('setup')}>
+            <button type="button" className="chip" onClick={() => leave('done')}>
               {t.capture.doneTrying}
             </button>
           </div>
@@ -795,7 +899,7 @@ export function Capture() {
       </section>
 
       <div className="screen-actions">
-        <button type="button" className="chip" onClick={() => setScreen('landing')}>
+        <button type="button" className="chip" onClick={() => leave('back')}>
           {t.capture.back}
         </button>
       </div>

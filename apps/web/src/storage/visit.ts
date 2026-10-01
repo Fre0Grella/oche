@@ -58,3 +58,13 @@ export function proposalsBeside<T extends { board: { x: number; y: number } }>(
 export function worthSaving(frame: { edited: boolean; proposed: number; darts: readonly unknown[] }): boolean {
   return frame.darts.length > 0 && (frame.edited || frame.proposed > 0);
 }
+
+/**
+ * What a newly settled photograph does to the one on screen. A settle is any
+ * moment the board goes still — an arm, a hand reaching for a dart — so it is
+ * never a reason to save: a photograph someone has started on stays put and
+ * the new one waits; an untouched one is simply replaced.
+ */
+export function onNewPhoto(open: { edited: boolean; proposed: number; darts: readonly unknown[] } | null): 'replace' | 'wait' {
+  return open !== null && worthSaving(open) ? 'wait' : 'replace';
+}
