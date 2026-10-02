@@ -47,6 +47,8 @@
   --ring-a: var(--board-red);
   --ring-b: var(--board-green);
   --live: var(--green-400);
+  --live-fill: var(--green-500);
+  --checkout: var(--green-300);
   --warn: var(--beige-300);
   --danger: var(--red-400);
   --tint-live: rgb(0 113 60 / 18%);
@@ -320,7 +322,7 @@ input {
 }
 
 .player-checkout {
-  color: var(--accent);
+  color: var(--checkout);
   font-weight: 650;
   letter-spacing: 0.02em;
 }
@@ -388,8 +390,8 @@ input {
 }
 
 .dart-chip-correcting {
-  border-color: var(--warn);
-  color: var(--warn);
+  border-color: var(--danger);
+  color: var(--danger);
   font-weight: 700;
 }
 
@@ -458,7 +460,7 @@ input {
 }
 
 .key-treble {
-  border-color: var(--warn);
+  border-color: var(--danger);
 }
 
 .key-wide {
@@ -476,7 +478,7 @@ input {
 }
 
 .checkout-line b {
-  color: var(--accent);
+  color: var(--checkout);
   letter-spacing: 0.04em;
 }
 
@@ -1232,7 +1234,7 @@ input {
 }
 
 .bars-fill-strong {
-  background: var(--accent);
+  background: var(--live-fill);
 }
 
 .bars-value {

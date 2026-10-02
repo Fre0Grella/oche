@@ -4,6 +4,10 @@
  * A sentence explaining "one device" versus "two devices" is slower to read
  * than a drawing of a phone on its own next to a drawing of a phone talking to
  * a laptop, so the drawings carry the choice and the words confirm it.
+ *
+ * They are drawn in the board's colours: red for the things that point at the
+ * board (the dart, the camera's lens), green for what flows from it (the
+ * camera's view, the video, the score).
  */
 
 const BOARD_RINGS = [26, 20, 13, 6, 2.4];
@@ -34,7 +38,7 @@ function Board({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
         />
       ))}
       {/* A dart in the treble, so it reads as a board in use. */}
-      <g transform="translate(6 -16) rotate(35)" stroke="var(--accent)" strokeWidth={2.2} strokeLinecap="round">
+      <g transform="translate(6 -16) rotate(35)" stroke="var(--red-400)" strokeWidth={2.2} strokeLinecap="round">
         <line x1={0} y1={0} x2={11} y2={0} />
         <path d="M11 -3 L16 0 L11 3" fill="none" />
       </g>
@@ -47,7 +51,7 @@ function Phone({ x, y, rotate = 0 }: { x: number; y: number; rotate?: number }) 
     <g transform={`translate(${x} ${y}) rotate(${rotate})`}>
       <rect x={-13} y={-24} width={26} height={48} rx={5} fill="var(--bg-sunken)" stroke="currentColor" strokeWidth={1.6} />
       <rect x={-10} y={-19} width={20} height={34} rx={2} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.5} />
-      <circle cy={-21} r={1.6} fill="var(--accent)" />
+      <circle cy={-21} r={1.6} fill="var(--red-400)" />
       <line x1={-4} y1={19} x2={4} y2={19} stroke="currentColor" strokeWidth={1.4} opacity={0.6} />
     </g>
   );
@@ -60,7 +64,7 @@ function Laptop({ x, y }: { x: number; y: number }) {
       <rect x={-21} y={-15} width={42} height={24} rx={1.5} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.45} />
       <path d="M-34 14 H34 l4 5 H-38 z" fill="var(--bg-sunken)" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" />
       {/* A score on the screen: this is the device doing the thinking. */}
-      <text x={0} y={2} textAnchor="middle" fontSize={13} fontWeight={700} fill="var(--accent)">
+      <text x={0} y={2} textAnchor="middle" fontSize={13} fontWeight={700} fill="var(--green-300)">
         501
       </text>
     </g>
@@ -85,9 +89,9 @@ function Sightline({ from, to }: { from: [number, number]; to: [number, number] 
   return (
     <path
       d={`M${x1} ${y1} L${ax} ${ay} L${bx} ${by} z`}
-      fill="var(--accent)"
-      opacity={0.12}
-      stroke="var(--accent)"
+      fill="var(--green-400)"
+      opacity={0.18}
+      stroke="var(--green-300)"
       strokeWidth={0.8}
       strokeDasharray="3 3"
     />
@@ -135,7 +139,7 @@ export function PairedModeArt({ focus }: { focus?: 'phone' | 'computer' } = {}) 
       </g>
 
       {/* Waves: the phone is sending, the laptop is receiving. */}
-      <g className="mode-waves" stroke="var(--accent)" fill="none" strokeLinecap="round" strokeWidth={1.8}>
+      <g className="mode-waves" stroke="var(--green-300)" fill="none" strokeLinecap="round" strokeWidth={1.8}>
         <path d="M100 52 a10 10 0 0 1 0 -14 a10 10 0 0 1 0 -14" opacity={0} transform="translate(0 14)" />
         <path className="wave wave-1" d="M100 44 a9 9 0 0 1 0 16" />
         <path className="wave wave-2" d="M107 39 a15 15 0 0 1 0 26" />
