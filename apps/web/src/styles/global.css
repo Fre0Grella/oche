@@ -1,19 +1,59 @@
 /*
  * Dark first, because darts is played in garages and pubs, and the score has to
  * be readable from the oche — two or three metres away, at a glance.
+ *
+ * The palette is the dartboard's own: the black bed, the beige bed, and the
+ * green and red of the rings and the bull, as the app draws them. Beige is the
+ * accent and the primary action. Red or green alone reads as error or success,
+ * so on an action they only ever appear together, as the ring of the board
+ * button.
  */
 
 :root {
-  --bg: #0d1117;
-  --bg-raised: #161b22;
-  --bg-sunken: #010409;
-  --line: #2b3440;
-  --text: #e6edf3;
-  --text-dim: #8b949e;
-  --accent: #ffd166;
-  --accent-ink: #1a1400;
-  --live: #2ea043;
-  --warn: #d2691e;
+  --board-black: #15130f;
+  --board-beige: #e5d3a8;
+  --board-green: #00713c;
+  --board-red: #c0182f;
+
+  --black-950: #0b0a08;
+  --black-900: #15130f;
+  --black-800: #1f1c17;
+  --black-700: #2c2820;
+  --black-600: #3a352b;
+  --beige-50: #faf6ec;
+  --beige-100: #f4ecd8;
+  --beige-300: #e5d3a8;
+  --beige-400: #c9b78c;
+  --beige-500: #a89a7a;
+  --beige-700: #6b6250;
+  --green-500: #00713c;
+  --green-400: #1f9a5a;
+  --green-300: #4fbf7f;
+  --red-400: #e0425a;
+
+  --bg: var(--black-900);
+  --bg-raised: var(--black-800);
+  --bg-sunken: var(--black-950);
+  --bg-hover: var(--black-700);
+  --line: var(--black-600);
+  --text: var(--beige-100);
+  --text-dim: var(--beige-500);
+  --text-faint: var(--beige-700);
+  --accent: var(--beige-300);
+  --accent-ink: var(--black-900);
+  --action: var(--beige-300);
+  --action-ink: var(--black-900);
+  --action-hover: var(--beige-400);
+  --ring-a: var(--board-red);
+  --ring-b: var(--board-green);
+  --live: var(--green-400);
+  --warn: var(--beige-300);
+  --danger: var(--red-400);
+  --tint-live: rgb(0 113 60 / 18%);
+  --tint-warn: rgb(229 211 168 / 10%);
+  --tint-danger: rgb(192 24 47 / 16%);
+  --scrim: rgb(11 10 8 / 78%);
+  --scrim-badge: rgb(11 10 8 / 72%);
 
   --radius: 12px;
   --gap: 12px;
@@ -104,16 +144,59 @@ button {
   min-height: 44px;
 }
 
+button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 button:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--beige-50);
+}
+
 .primary {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--action);
+  color: var(--action-ink);
   border-color: transparent;
   font-weight: 700;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--action-hover);
+}
+
+/* The board button: a beige face inside a ring of alternating red and green
+   beds, the double ring. For the actions that start play, and nothing else. */
+.board-btn,
+.board-btn:hover:not(:disabled) {
+  border: 3px solid transparent;
+  background:
+    linear-gradient(var(--action), var(--action)) padding-box,
+    repeating-conic-gradient(var(--ring-a) 0 18deg, var(--ring-b) 18deg 36deg) border-box;
+  color: var(--action-ink);
+  font-weight: 700;
+}
+
+.board-btn:hover:not(:disabled) {
+  background:
+    linear-gradient(var(--action-hover), var(--action-hover)) padding-box,
+    repeating-conic-gradient(var(--ring-a) 0 18deg, var(--ring-b) 18deg 36deg) border-box;
 }
 
 /* Only stretch inside a row of buttons: a lone primary in a column layout
@@ -130,7 +213,8 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-.chip-on {
+.chip-on,
+.chip-on:hover:not(:disabled) {
   background: var(--accent);
   color: var(--accent-ink);
   border-color: transparent;
@@ -453,7 +537,7 @@ input {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(1 4 9 / 78%);
+  background: var(--scrim);
   padding: 16px;
 }
 
@@ -530,7 +614,7 @@ input {
   left: 8px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgb(1 4 9 / 72%);
+  background: var(--scrim-badge);
   border: 1px solid var(--line);
   font-size: 0.75rem;
   color: var(--text-dim);
@@ -541,9 +625,9 @@ input {
   margin: 0;
   padding: 8px 12px;
   border-radius: 10px;
-  color: var(--warn);
-  background: rgb(210 105 30 / 12%);
-  border: 1px solid var(--warn);
+  color: var(--danger);
+  background: var(--tint-danger);
+  border: 1px solid var(--danger);
   font-size: 0.85rem;
 }
 
@@ -610,7 +694,7 @@ input {
 
 .coach-ready {
   border-color: var(--live);
-  background: rgb(46 160 67 / 12%);
+  background: var(--tint-live);
 }
 
 .coach-ready .coach-dot {
@@ -619,7 +703,7 @@ input {
 
 .coach-warn {
   border-color: var(--warn);
-  background: rgb(210 105 30 / 12%);
+  background: var(--tint-warn);
 }
 
 .coach-warn .coach-dot {
@@ -627,12 +711,12 @@ input {
 }
 
 .coach-error {
-  border-color: #da3633;
-  background: rgb(218 54 51 / 12%);
+  border-color: var(--danger);
+  background: var(--tint-danger);
 }
 
 .coach-error .coach-dot {
-  background: #da3633;
+  background: var(--danger);
   animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -664,6 +748,50 @@ input {
 }
 
 /* ---------- landing ---------- */
+
+/* A huge board centred off the top-right corner, so only its lower-left
+   quadrant (and a bit) shows, turning slowly behind the page. */
+.landing-wrap {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.landing-wrap > .screen {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing-backdrop-board {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(150vw, 1200px);
+  aspect-ratio: 1;
+  transform: translate(42%, -42%);
+  opacity: 0.22;
+}
+
+.landing-backdrop-board > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  animation: board-spin 180s linear infinite;
+}
+
+@keyframes board-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .screen-landing {
   gap: 20px;
@@ -847,7 +975,8 @@ input {
 @media (prefers-reduced-motion: reduce) {
   .mode-waves .wave,
   .coach-error .coach-dot,
-  .dartboard-target {
+  .dartboard-target,
+  .landing-backdrop-board > svg {
     animation: none;
   }
 }

@@ -132,9 +132,21 @@ export interface DartboardProps {
   /** Drawn as a ring, to show where a checkout route says to aim. */
   target?: Hit | null;
   disabled?: boolean;
+  /**
+   * Drawn as a picture and nothing else: no taps, no lens, nothing for a
+   * screen reader. The landing page uses it as its backdrop, where its size
+   * and motion come from the element around it.
+   */
+  decorative?: boolean;
 }
 
-export function Dartboard({ onHit, darts = [], target = null, disabled = false }: DartboardProps) {
+export function Dartboard({
+  onHit,
+  darts = [],
+  target = null,
+  disabled = false,
+  decorative = false,
+}: DartboardProps) {
   const beds = useMemo(buildBeds, []);
   const numbers = useMemo(
     () =>
@@ -233,11 +245,13 @@ export function Dartboard({ onHit, darts = [], target = null, disabled = false }
   return (
     <svg
       ref={svgRef}
-      className="dartboard"
+      className={decorative ? undefined : 'dartboard'}
       viewBox={`${-R} ${-R} ${2 * R} ${2 * R}`}
-      role={onHit ? 'button' : 'img'}
-      aria-label="Dartboard"
+      role={decorative ? undefined : onHit ? 'button' : 'img'}
+      aria-label={decorative ? undefined : 'Dartboard'}
+      aria-hidden={decorative || undefined}
       onPointerDown={(event) => {
+        if (decorative) return;
         event.currentTarget.setPointerCapture(event.pointerId);
         track(event);
       }}
@@ -257,13 +271,16 @@ export function Dartboard({ onHit, darts = [], target = null, disabled = false }
             <circle cx={0} cy={0} r={BOARD.outerBullRadius} fill={COLOURS.green} />
             <circle cx={0} cy={0} r={BOARD.bullRadius} fill={COLOURS.red} />
           </g>
-          <g fill={COLOURS.number} fontSize={26} fontWeight={600} textAnchor="middle">
-            {numbers.map((n) => (
-              <text key={n.sector} x={n.x} y={n.y + 9}>
-                {n.sector}
-              </text>
-            ))}
-          </g>
+          {/* A backdrop turns: numbers going round upside down are noise. */}
+          {!decorative && (
+            <g fill={COLOURS.number} fontSize={26} fontWeight={600} textAnchor="middle">
+              {numbers.map((n) => (
+                <text key={n.sector} x={n.x} y={n.y + 9}>
+                  {n.sector}
+                </text>
+              ))}
+            </g>
+          )}
         </g>
 
         <g id={dartsId}>{dartMarkers}</g>
@@ -284,7 +301,7 @@ export function Dartboard({ onHit, darts = [], target = null, disabled = false }
           cy={-targetPos.y}
           r={9}
           fill="none"
-          stroke="#ffd166"
+          stroke="#ffffff"
           strokeWidth={2.5}
         />
       )}
