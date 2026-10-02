@@ -6,3 +6,5 @@ pandas>=2.0        # DeepDarts ships its labels as a pickled DataFrame
 onnx>=1.16
 onnxruntime>=1.18
 pytest>=8
+pyyaml>=6            # dartscribe writes its labels as YAML
+huggingface_hub>=0.24 # to download dartscribe

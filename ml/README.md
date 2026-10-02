@@ -36,6 +36,7 @@ Put things here; none of it is committed (see `.gitignore` and
 ```
 ml/data/oche/        your exports from the app: oche-captures-YYYY-MM-DD.zip
 ml/data/deepdarts/   the DeepDarts dataset, unpacked (labels.pkl + cropped_images/)
+ml/data/dartscribe/  the dartscribe dataset (throws/, boards/): side-view cameras
 ```
 
 **Your exports.** In the app: Camera setup → Export. Check them first in
@@ -58,6 +59,30 @@ dart tip looks like, not what your room looks like.
 > The green board must sit on the real wires, with the 20 at the top. If it is
 > rotated by a sector or mirrored, the fix is the four points in
 > `DEEPDARTS_CALIBRATION_BOARD` and nothing else.
+
+**dartscribe** (Ercan Akyürek; Hugging Face
+[`geforcefan/dartscribe`](https://huggingface.co/datasets/geforcefan/dartscribe),
+**CC BY-SA 4.0**: attribution and share-alike). Three cameras on a ring around
+the board, about 40 cm from the bull and tilted 34–56°, plus in two sessions a
+phone on a stand about 2 m back. 312 visits, each photographed empty and after
+every dart: about 2 900 photographs with darts in the board and 980 without.
+Every camera has the bull and the 80 wire crossings labelled; every dart has
+its position on the board, most placed by dartscribe's own three-camera
+triangulation rather than by hand.
+
+It is here because DeepDarts is face-on (2° of tilt in D1, at most 29° in D2),
+where a flight sits over its tip, and a model trained on it marks the flight
+on a side camera: tips-v1 scores 0.5% of dartscribe's held-out photographs
+right. Your phone, at about 45° and 70 cm, sits between the two datasets.
+
+```powershell
+python -c "from huggingface_hub import snapshot_download; snapshot_download('geforcefan/dartscribe', repo_type='dataset', local_dir='data/dartscribe', allow_patterns=['README.md','throws/*/*/data.yaml','throws/*/*/throw-*.jpg','boards/*/*'])"
+python -m oche_ml.preview --dartscribe data/dartscribe --out runs/preview-ds --limit 30
+```
+
+Whether share-alike reaches a model trained on the data is not settled law. A
+model card that used dartscribe says so; decide before shipping such a model
+in anything that is not itself open.
 
 ## Splits
 
@@ -202,7 +227,8 @@ board for you.
 |---|---|
 | `oche_ml/board.py` | Scoring (a port of `packages/core`), homographies, the rectified-view spec |
 | `oche_ml/oche_export.py` | Reads and checks the app's export zip |
-| `oche_ml/deepdarts.py` | Reads DeepDarts (unverified, see above) |
+| `oche_ml/deepdarts.py` | Reads DeepDarts |
+| `oche_ml/dartscribe.py` | Reads dartscribe (side-view cameras), with its own fixed split |
 | `oche_ml/dataset.py` | Warping, augmentation, heatmap targets |
 | `oche_ml/model.py` | The network and its losses |
 | `oche_ml/decode.py` | Heatmaps → tips → scores; the reference for the browser's decoder |

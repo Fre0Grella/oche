@@ -35,6 +35,7 @@ expression. They are re-derived from the WDF/PDC board specification in
 | Dataset | Licence | Obligation |
 |---|---|---|
 | **DeepDarts D1 + D2** — McNally, Vats, Wong, McPhee, *DeepDarts: Modeling Keypoints as Objects for Automatic Scorekeeping in Darts using a Single Camera*, CVPRW 2021. IEEE DataPort, DOI 10.21227/05e7-xs69 | CC BY (IEEE DataPort submission terms) | Attribution in `ml/README.md`, in the model card (which is also the release notes), and in the app wherever the model is used — for now the capture lab's autoscorer panel, until there is an about screen. Download needs a free IEEE account — fetch it manually, never scripted past a login. Not redistributed from this repository. |
+| **dartscribe** — Ercan Akyürek, Hugging Face `geforcefan/dartscribe`. Side-view ring cameras, with the board's wire crossings and each dart's position labelled | CC BY-SA 4.0 | Attribution in `ml/README.md` and in the card of every model trained on it. Share-alike: whether that reaches trained weights is unsettled, so a model that used it is treated as CC BY-SA until decided otherwise, which matters for shipping in anything closed. Not redistributed from this repository. |
 | **Own captures** (Marco's board) | ours | Stay local by default. If ever published, they get their own licence statement and no faces or identifiable rooms in frame. |
 | **In-game corrections** | ours, and the user's | Opt-in. Frames never leave the device unless exported deliberately. Doc 01 states this to the user, not just here. |
 

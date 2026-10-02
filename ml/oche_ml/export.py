@@ -90,6 +90,7 @@ def main() -> None:
     # from this machine.
     oche_used = [Path(p).name for p in run_args.get("oche") or []]
     deepdarts_used = bool(run_args.get("deepdarts"))
+    dartscribe_used = bool(run_args.get("dartscribe"))
     init = Path(run_args["init"]).parent.name + "/" + Path(run_args["init"]).name if run_args.get("init") else None
     card = f"""# {args.name}
 
@@ -109,6 +110,7 @@ Dart-tip detector for the oche autoscorer (model B, docs/03-autoscorer.md).
 
 - oche exports: {', '.join(oche_used) or 'none'}
 - DeepDarts: {'yes — McNally, Vats, Wong, McPhee, *DeepDarts: Modeling Keypoints as Objects for Automatic Scorekeeping in Darts using a Single Camera*, CVPRW 2021. IEEE DataPort, DOI 10.21227/05e7-xs69, CC BY.' if deepdarts_used else 'not used'}
+- dartscribe: {'yes — Ercan Akyürek, *dartscribe* dataset, Hugging Face `geforcefan/dartscribe`, CC BY-SA 4.0 (attribution and share-alike).' if dartscribe_used else 'not used'}
 
 ## Validation when the checkpoint was picked
 

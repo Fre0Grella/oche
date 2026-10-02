@@ -116,8 +116,13 @@ def main() -> None:
     train_set = ConcatDataset(datasets)
 
     # Validate on your own board when there is any of it: that is the number
-    # that matters. DeepDarts validation is the fallback during pretraining.
-    val = [s for s in parts["val"] if s.source == "oche"] or parts["val"]
+    # that matters. Failing that, on side-view photographs (dartscribe), which
+    # are the hard case; face-on DeepDarts is the last resort.
+    val = (
+        [s for s in parts["val"] if s.source == "oche"]
+        or [s for s in parts["val"] if s.source == "dartscribe"]
+        or parts["val"]
+    )
 
     loader = DataLoader(
         train_set,

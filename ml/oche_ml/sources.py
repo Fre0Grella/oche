@@ -6,6 +6,7 @@ import argparse
 import glob
 from pathlib import Path
 
+from .dartscribe import load_dartscribe
 from .deepdarts import load_deepdarts
 from .oche_export import load_export
 from .samples import Sample, split_of
@@ -14,6 +15,7 @@ from .samples import Sample, split_of
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--oche", nargs="*", default=[], help="capture-lab exports: zips or unzipped folders")
     parser.add_argument("--deepdarts", default=None, help="the DeepDarts dataset folder (holds labels.pkl)")
+    parser.add_argument("--dartscribe", default=None, help="the dartscribe dataset folder (holds throws/): side-view cameras")
     parser.add_argument("--reviewed-only", action="store_true", help="of your own photographs, use only those confirmed in the app's review screen")
 
 
@@ -43,8 +45,13 @@ def load(args: argparse.Namespace, verbose: bool = True) -> list[Sample]:
         samples += loaded
         if verbose:
             print(f"{args.deepdarts}: {counts}")
+    if getattr(args, "dartscribe", None):
+        loaded, counts = load_dartscribe(Path(args.dartscribe))
+        samples += loaded
+        if verbose:
+            print(f"{args.dartscribe}: {counts}")
     if not samples:
-        raise SystemExit("no samples: pass --oche and/or --deepdarts")
+        raise SystemExit("no samples: pass --oche, --deepdarts and/or --dartscribe")
     return samples
 
 
@@ -56,7 +63,10 @@ def split(samples: list[Sample]) -> dict[str, list[Sample]]:
     # of them in test with its siblings in train is a leak.
     involved = {s.group for s in samples if s.meta.get("model_involved")}
     for sample in samples:
-        parts["train" if sample.group in involved else split_of(sample.group)].append(sample)
+        # A dataset may fix its own split (dartscribe does); otherwise it is the
+        # hash of the group's name.
+        part = sample.meta.get("split") or split_of(sample.group)
+        parts["train" if sample.group in involved else part].append(sample)
     return parts
 
 
