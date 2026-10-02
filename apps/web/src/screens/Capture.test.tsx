@@ -14,6 +14,7 @@ const HEIGHT = 480;
 const hooks = vi.hoisted(() => ({
   settle: undefined as ((frame: GrabbedFrame) => void) | undefined,
   stored: [] as CapturedFrame[],
+  detectorLoads: 0,
 }));
 
 vi.mock('../vision/useCamera.js', () => ({
@@ -40,12 +41,16 @@ vi.mock('../vision/camera.js', () => ({ cameraSupported: () => true }));
 
 // A model that always proposes one dart, in the treble 20.
 vi.mock('../vision/detector.js', () => ({
-  loadDetector: async () => ({
+  loadManifest: async () => ({ name: 'test-model', file: 'x.onnx', sha256: 'x' }),
+  loadDetector: async () => {
+    hooks.detectorLoads += 1;
+    return {
     manifest: { name: 'test-model', file: 'x.onnx', sha256: 'x' },
     detect: async () => [
       { img: { x: 320, y: 200 }, board: { x: 0, y: 103 }, hit: { sector: 20, ring: 'treble', value: 60 }, confidence: 0.9 },
     ],
-  }),
+    };
+  },
 }));
 
 vi.mock('../caller/caller.js', () => ({ caller: () => ({ say: () => undefined }), unlockCaller: () => undefined }));
@@ -98,10 +103,15 @@ describe('the capture lab saves only what a person confirmed', () => {
       settings: { ...state.settings, calibration: { ...calibration, ts: 1 } },
     }));
 
+    hooks.detectorLoads = 0;
     render(<Capture />);
     await press(/start camera/i);
     await press(/try it/i);
+    // Nothing heavy is loaded until proposals are asked for.
+    expect(hooks.detectorLoads).toBe(0);
     await press(/autoscorer proposes.*off/i);
+    await screen.findByRole('button', { name: /autoscorer proposes.*: on/i });
+    expect(hooks.detectorLoads).toBe(1);
   });
 
   afterEach(() => {

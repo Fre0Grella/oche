@@ -7,13 +7,15 @@
  */
 
 /**
- * As large as the camera will go. The photographs taken from this stream are
- * what the autoscorer is trained on and later reads, and a dart tip is a few
- * pixels wide: at 1080p a board filling half the frame is about 1 mm a pixel,
- * and the double ring is 8 mm. `ideal` means a camera that cannot do 4K gives
- * its largest size instead of failing.
+ * 1080p, and no more. 4K was tried, for sharper dart tips, and made phones
+ * crawl: every frame of the video is read into a thumbnail to notice the board
+ * going still, and a phone doing that on four times the pixels, while also
+ * encoding the video for the laptop, cannot keep up with a finger dragging a
+ * marker. The photograph that gets labelled is this stream's frame at full
+ * size (in paired mode taken on the phone, not from the compressed video the
+ * laptop receives), and the model sees the board at 512 pixels across anyway.
  */
-const MAX_SIZE = { width: { ideal: 3840 }, height: { ideal: 2160 } };
+const MAX_SIZE = { width: { ideal: 1920 }, height: { ideal: 1080 } };
 
 const CONSTRAINTS: MediaStreamConstraints = {
   audio: false,

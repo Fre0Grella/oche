@@ -11,8 +11,10 @@
  *
  * ONNX Runtime runs on WebAssembly, single-threaded: threads need
  * cross-origin isolation, which GitHub Pages cannot switch on. Its .wasm file
- * is part of the build, not fetched from a CDN. Everything is loaded on first
- * use, so nobody pays for it until they ask for a proposal.
+ * is part of the build, not fetched from a CDN. Knowing that a model exists
+ * costs one small manifest (`loadManifest`); the runtime and the model, some
+ * megabytes and a second or two of a phone's attention, are only loaded when
+ * somebody switches proposals on (`loadDetector`).
  */
 
 import {
@@ -54,7 +56,16 @@ export interface Detector {
   detect: (frame: GrabbedFrame, calibration: Pick<Calibration, 'toBoard' | 'toImage'>) => Promise<Detection[]>;
 }
 
+let manifestLoading: Promise<ModelManifest | null> | null = null;
 let loading: Promise<Detector | null> | null = null;
+
+/** Which model the site ships, if any. Cheap: the manifest alone. */
+export function loadManifest(): Promise<ModelManifest | null> {
+  manifestLoading ??= fetch('./models/manifest.json', { cache: 'no-cache' })
+    .then((response) => (response.ok ? (response.json() as Promise<ModelManifest>) : null))
+    .catch(() => null);
+  return manifestLoading;
+}
 
 /** The shipped model, loaded once; null when the site has none or it cannot run here. */
 export function loadDetector(): Promise<Detector | null> {
@@ -71,9 +82,8 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 }
 
 async function load(): Promise<Detector | null> {
-  const response = await fetch('./models/manifest.json', { cache: 'no-cache' });
-  if (!response.ok) return null;
-  const manifest = (await response.json()) as ModelManifest;
+  const manifest = await loadManifest();
+  if (!manifest) return null;
 
   const bytes = await (await fetch(`./models/${manifest.file}`)).arrayBuffer();
   const actual = await sha256(bytes);

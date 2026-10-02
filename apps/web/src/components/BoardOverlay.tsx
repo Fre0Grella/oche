@@ -11,7 +11,7 @@
  */
 
 import { applyHomography, boardWireframe, type Matrix3, type Point } from '@oche/core';
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 
 export interface OverlayHandle {
   point: Point;
@@ -58,6 +58,24 @@ export function BoardOverlay({
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag>(null);
   const moved = useRef(false);
+
+  // A phone reports a finger a hundred and more times a second, and every
+  // report re-renders the screen that owns the markers. Only the latest
+  // position matters, so moves are handed on once per frame.
+  const moveHandlers = useRef({ onHandleMove, onDartMove });
+  moveHandlers.current = { onHandleMove, onDartMove };
+  const pendingMove = useRef<{ kind: 'handle' | 'dart'; index: number; point: Point } | null>(null);
+  const moveFrame = useRef(0);
+  const flushMove = () => {
+    if (moveFrame.current) cancelAnimationFrame(moveFrame.current);
+    moveFrame.current = 0;
+    const move = pendingMove.current;
+    pendingMove.current = null;
+    if (!move) return;
+    if (move.kind === 'handle') moveHandlers.current.onHandleMove?.(move.index, move.point);
+    else moveHandlers.current.onDartMove?.(move.index, move.point);
+  };
+  useEffect(() => () => cancelAnimationFrame(moveFrame.current), []);
 
   // The board's wires, projected into the photograph.
   const wires = useMemo(() => {
@@ -110,13 +128,14 @@ export function BoardOverlay({
     const point = toImageSpace(event);
     if (!point) return;
     moved.current = true;
-    if (drag.current.kind === 'handle') onHandleMove?.(drag.current.index, point);
-    else onDartMove?.(drag.current.index, point);
+    pendingMove.current = { kind: drag.current.kind, index: drag.current.index, point };
+    if (!moveFrame.current) moveFrame.current = requestAnimationFrame(flushMove);
   };
 
   const onPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const wasDragging = drag.current !== null;
     drag.current = null;
+    flushMove(); // the marker ends where the finger left it, not one frame short
     if (wasDragging) return;
 
     const point = toImageSpace(event);

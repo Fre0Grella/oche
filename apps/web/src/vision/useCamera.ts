@@ -39,6 +39,12 @@ export interface UseCameraOptions {
    * used after all.
    */
   grab?: (() => Promise<GrabbedFrame | null>) | null;
+  /**
+   * Keep the camera on but stop watching it: no thumbnails, no settle
+   * detection. For screens where a still photograph is on top and a person is
+   * dragging markers, and every bit of the phone should go to their finger.
+   */
+  paused?: boolean;
   /** Called once per throw, with the frame taken when the board went still. */
   onSettle?: (frame: GrabbedFrame) => void;
   /** Set false to watch for motion without photographing anything. */
@@ -83,6 +89,7 @@ export function useCamera({
   reference = null,
   stream: externalStream = null,
   grab = null,
+  paused = false,
 }: UseCameraOptions): CameraState {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -105,6 +112,8 @@ export function useCamera({
   settleHandler.current = onSettle;
   const grabRef = useRef(grab);
   grabRef.current = grab;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   /** The photograph's size when it is not the video's; null while it is. */
   const photoSize = useRef<{ width: number; height: number } | null>(null);
 
@@ -181,6 +190,8 @@ export function useCamera({
           if (!photoSize.current && element.videoWidth !== 0 && element.videoWidth !== size.width) {
             setSize({ width: element.videoWidth, height: element.videoHeight });
           }
+
+          if (pausedRef.current) return;
 
           const thumb = thumbnail(element, toVideo(element, regionRef.current));
           if (!thumb) return;

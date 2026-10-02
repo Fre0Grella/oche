@@ -57,7 +57,7 @@ import { storageEstimate } from '../storage/db.js';
 import { carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worthSaving } from '../storage/visit.js';
 import { useMatchStore } from '../store/match.js';
 import { cameraSupported, type GrabbedFrame } from '../vision/camera.js';
-import { loadDetector, type Detector } from '../vision/detector.js';
+import { loadDetector, loadManifest, type Detector, type ModelManifest } from '../vision/detector.js';
 import { useCamera } from '../vision/useCamera.js';
 
 type Mode = 'setup' | 'calibrate' | 'try';
@@ -142,6 +142,8 @@ export function Capture() {
   );
   /** The darts in the board as of the last saved photograph. */
   const [inBoard, setInBoard] = useState<LabelledDart[]>([]);
+  /** The model the site ships, known from its manifest; the model itself loads only when asked for. */
+  const [modelInfo, setModelInfo] = useState<ModelManifest | null>(null);
   const [detector, setDetector] = useState<Detector | null>(null);
   // Off until a model has been tested on this board (issue #5): a proposal
   // from one that has not marks flights as often as tips.
@@ -361,6 +363,8 @@ export function Capture() {
     reference,
     stream: paired ? remoteStream : null,
     grab: paired && pairing ? () => pairing.requestPhoto() : null,
+    // Aligning the board is done on a still photograph: nothing to watch for.
+    paused: mode === 'calibrate',
   });
 
   const frameSize =
@@ -509,13 +513,27 @@ export function Capture() {
   useEffect(() => {
     if (mode !== 'try') return;
     let cancelled = false;
-    void loadDetector().then((loaded) => {
-      if (!cancelled) setDetector(loaded);
+    void loadManifest().then((loaded) => {
+      if (!cancelled) setModelInfo(loaded);
     });
     return () => {
       cancelled = true;
     };
   }, [mode]);
+
+  // The runtime and the model are only fetched once proposals are switched on.
+  useEffect(() => {
+    if (!proposing || !modelInfo || detector) return;
+    let cancelled = false;
+    void loadDetector().then((loaded) => {
+      if (cancelled) return;
+      setDetector(loaded);
+      if (!loaded) setProposing(false); // it could not be loaded here: say so by switching back off
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [proposing, modelInfo, detector]);
 
   // Leaving try-it ends the visit: by the time anyone comes back the darts may
   // be out, or the camera recalibrated, and a carried mark would be a ghost.
@@ -760,7 +778,7 @@ export function Capture() {
             </div>
           )}
 
-          {detector && (
+          {modelInfo && (
             <section className="panel">
               <div className="controls">
                 <button
@@ -768,7 +786,7 @@ export function Capture() {
                   className={`chip${proposing ? ' chip-on' : ''}`}
                   onClick={() => setProposing((on) => !on)}
                 >
-                  {proposing ? t.capture.proposingOn : t.capture.proposingOff}
+                  {proposing ? (detector ? t.capture.proposingOn : t.capture.proposingLoading) : t.capture.proposingOff}
                 </button>
               </div>
               <p className="hint">
@@ -781,9 +799,9 @@ export function Capture() {
                 </p>
               )}
               <p className="hint">
-                {fill(t.capture.modelName, { name: detector.manifest.name })}
-                {detector.manifest.deepdarts && ` ${t.capture.deepdartsCredit}`}
-                {detector.manifest.dartscribe && ` ${t.capture.dartscribeCredit}`}
+                {fill(t.capture.modelName, { name: modelInfo.name })}
+                {modelInfo.deepdarts && ` ${t.capture.deepdartsCredit}`}
+                {modelInfo.dartscribe && ` ${t.capture.dartscribeCredit}`}
               </p>
             </section>
           )}
