@@ -48,9 +48,12 @@ jobs:
           file="$name-${sha:0:12}.onnx"
           mkdir -p apps/web/dist/models
           cp "$RUNNER_TEMP/model/$name.onnx" "apps/web/dist/models/$file"
+          # Datasets that have to be credited wherever the model is used.
           deepdarts=false
+          dartscribe=false
           if [ -f "$card" ] && grep -q "DeepDarts: yes" "$card"; then deepdarts=true; fi
-          printf '{"name":"%s","file":"%s","sha256":"%s","deepdarts":%s}\n' "$name" "$file" "$sha" "$deepdarts" > apps/web/dist/models/manifest.json
+          if [ -f "$card" ] && grep -q "dartscribe: yes" "$card"; then dartscribe=true; fi
+          printf '{"name":"%s","file":"%s","sha256":"%s","deepdarts":%s,"dartscribe":%s}\n' "$name" "$file" "$sha" "$deepdarts" "$dartscribe" > apps/web/dist/models/manifest.json
           echo "shipping $tag as models/$file"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

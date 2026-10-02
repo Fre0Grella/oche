@@ -401,6 +401,7 @@ export const en = {
     modelName: 'Model: {name}.',
     deepdartsCredit:
       'Trained on the DeepDarts dataset (McNally, Vats, Wong and McPhee, CVPR Workshops 2021, CC BY).',
+    dartscribeCredit: 'Trained on the dartscribe dataset (Ercan Akyürek, CC BY-SA 4.0).',
     markedCount: '{n} marked this session',
     undo: 'Undo that one',
     doneTrying: 'Done',

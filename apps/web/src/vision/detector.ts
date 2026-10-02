@@ -38,6 +38,8 @@ export interface ModelManifest {
   sha256: string;
   /** Trained on DeepDarts, which has to be credited wherever it is used. */
   deepdarts?: boolean;
+  /** Trained on dartscribe: CC BY-SA, so credited the same way. */
+  dartscribe?: boolean;
 }
 
 export interface Detection {

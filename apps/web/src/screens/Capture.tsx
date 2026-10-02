@@ -783,6 +783,7 @@ export function Capture() {
               <p className="hint">
                 {fill(t.capture.modelName, { name: detector.manifest.name })}
                 {detector.manifest.deepdarts && ` ${t.capture.deepdartsCredit}`}
+                {detector.manifest.dartscribe && ` ${t.capture.dartscribeCredit}`}
               </p>
             </section>
           )}

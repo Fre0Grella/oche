@@ -32,6 +32,20 @@ from .validate_onnx import SPEC, sha256, validate
 ML = Path(__file__).resolve().parent.parent
 
 
+def lineage(checkpoint: str | Path) -> list[dict]:
+    """The training arguments of a checkpoint and of every checkpoint it was initialised from."""
+    chain: list[dict] = []
+    seen: set[Path] = set()
+    path: Path | None = Path(checkpoint)
+    while path is not None and path.exists() and path.resolve() not in seen:
+        seen.add(path.resolve())
+        run_args = torch.load(path, map_location="cpu", weights_only=False).get("args") or {}
+        chain.append(run_args)
+        init = run_args.get("init")  # written relative to ml/, where training runs
+        path = None if not init else Path(init) if Path(init).is_absolute() else ML / init
+    return chain
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--checkpoint", required=True)
@@ -88,9 +102,12 @@ def main() -> None:
     run_args = state.get("args") or {}
     # The card is published with the release: file names only, never a path
     # from this machine.
-    oche_used = [Path(p).name for p in run_args.get("oche") or []]
-    deepdarts_used = bool(run_args.get("deepdarts"))
-    dartscribe_used = bool(run_args.get("dartscribe"))
+    # A model fine-tuned from another carries everything that one was trained
+    # on: the datasets, and the credit they are owed, come down the whole chain.
+    chain = lineage(args.checkpoint)
+    oche_used = sorted({Path(p).name for link in chain for p in link.get("oche") or []})
+    deepdarts_used = any(link.get("deepdarts") for link in chain)
+    dartscribe_used = any(link.get("dartscribe") for link in chain)
     init = Path(run_args["init"]).parent.name + "/" + Path(run_args["init"]).name if run_args.get("init") else None
     card = f"""# {args.name}
 
