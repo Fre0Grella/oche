@@ -106,6 +106,42 @@ describe('the computer half of pairing', () => {
     await waitFor(() => expect(accepted).toEqual([asTyped]));
   });
 
+  it('keeps the connection it has just handed to the lobby', async () => {
+    const { useMatchStore } = await import('../store/match.js');
+    useMatchStore.setState({ pairing: null, remoteStream: null, session: null, pairState: null, screen: 'pair' });
+    fakeConnection.state = 'waiting';
+
+    const hub = render(<PairHub />);
+    await press(/show the pairing code/i);
+
+    // The phone's video arrives while the connection is still being set up:
+    // a browser fires `track` on the answer, before `connected`.
+    fakeConnection.state = 'connecting';
+    await act(async () => {
+      (fakeConnection.onStream as unknown as (stream: MediaStream) => void)({} as MediaStream);
+    });
+    expect(useMatchStore.getState().screen).toBe('lobby');
+
+    // Opening the lobby takes this screen away. It used to close the
+    // connection on its way out, because it was not `connected` yet, and the
+    // lobby then said the phone had disconnected.
+    hub.unmount();
+    expect(fakeConnection.close).not.toHaveBeenCalled();
+    expect(useMatchStore.getState().pairing).toBe(fakeConnection);
+
+    useMatchStore.setState({ pairing: null, remoteStream: null, session: null, pairState: null, screen: 'landing' });
+    fakeConnection.state = 'waiting';
+  });
+
+  it('still closes a handshake that was abandoned half way', async () => {
+    const { useMatchStore } = await import('../store/match.js');
+    useMatchStore.setState({ pairing: null, remoteStream: null, session: null, pairState: null, screen: 'pair' });
+    const hub = render(<PairHub />);
+    await press(/show the pairing code/i);
+    hub.unmount();
+    expect(fakeConnection.close).toHaveBeenCalledOnce();
+  });
+
   it('counts what has been typed so far', async () => {
     render(<PairHub />);
     await press(/show the pairing code/i);

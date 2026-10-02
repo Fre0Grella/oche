@@ -195,7 +195,7 @@ export const en = {
     noSession: 'Choose how you are playing first.',
     chooseMode: 'Choose how to play',
     phoneConnected: 'Phone connected',
-    phoneReconnecting: 'Phone connection wobbling — reconnecting…',
+    phoneReconnecting: 'Connecting to the phone…',
     phoneLost: 'The phone has disconnected.',
     phoneGoneAfterReload: 'The page was reloaded, which ends a pairing: pair the phone again.',
     battery: 'battery {n}%{charging}',
@@ -393,6 +393,7 @@ export const en = {
     proposal: 'I read {hits} (the blue mark). Right? Press "Right — save it". Wrong? Drag the mark onto the tip, then Save.',
     proposingOn: 'Autoscorer proposes (experimental): on',
     proposingOff: 'Autoscorer proposes (experimental): off',
+    proposingLoading: 'Autoscorer proposes (experimental): loading…',
     proposingHelp:
       'The autoscorer marks the new dart in blue and calls it. Nothing is saved until you press Save: check the mark is on the tip, not the flight. This model has not been tested on your board yet.',
     proposingOffHelp: 'You mark every dart yourself.',

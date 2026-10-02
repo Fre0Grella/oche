@@ -46,10 +46,14 @@ export function PairHub() {
 
   useEffect(
     () => () => {
-      // Leaving mid-handshake should not leave a half-open connection behind;
-      // a finished one belongs to the store and stays alive.
-      if (connection.current && connection.current.state !== 'connected') {
-        connection.current.close();
+      // Leaving mid-handshake should not leave a half-open connection behind.
+      // One the store has taken belongs to the lobby and stays alive, whatever
+      // state it is in: the phone's video arrives, and the lobby opens, before
+      // the connection reports `connected`, and closing it here on the way out
+      // is how the lobby came to say "the phone has disconnected" every time.
+      const mine = connection.current;
+      if (mine && useMatchStore.getState().pairing !== mine && mine.state !== 'connected') {
+        mine.close();
         connection.current = null;
       }
     },
