@@ -12,9 +12,14 @@ permissions:
   pages: write
   id-token: write
 
+# One deploy at a time, and a newer one waits its turn rather than cancelling
+# the one that is running: publishing a model starts a deploy seconds after the
+# push that carried its card started one, and a cancelled run shows up red
+# although nothing is wrong. Queued, the later run still deploys last, so the
+# site ends up on the newest build either way.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
