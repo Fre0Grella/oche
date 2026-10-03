@@ -1,0 +1,71 @@
+name: Check
+
+# Everything that has to pass before the app is deployed: the TypeScript
+# packages type-check, their tests pass, and so do the model's (the ML package
+# shares the board's geometry and scoring with the app, so a change on either
+# side can break the other). Called by CI/CD; runnable alone from the Actions
+# tab.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  ml:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Only what the tests import. PyTorch comes from its CPU-only index: the
+      # default wheel carries CUDA, gigabytes the runner has no GPU for. The
+      # tests that need the training data skip themselves, as it is not here.
+      - name: Install
+        run: |
+          pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet numpy opencv-python-headless pyyaml pytest
+      - run: python -m pytest -q
+
+  # The one check to require: green only when every job above is. A failure
+  # anywhere fails it; when the jobs were cancelled (a newer push) it does not
+  # run, so a cancelled run is not reported as a failed one.
+  success:
+    runs-on: ubuntu-24.04
+    needs: [typecheck, test, ml]
+    if: >-
+      always() && (
+        contains(join(needs.*.result, ','), 'failure')
+        || !contains(join(needs.*.result, ','), 'cancelled')
+      )
+    steps:
+      - name: Verify that there were no failures
+        run: ${{ !contains(join(needs.*.result, ','), 'failure') }}

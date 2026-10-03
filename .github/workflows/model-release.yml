@@ -18,7 +18,7 @@ on:
 
 permissions:
   contents: write # publish the release
-  actions: write # start the Deploy workflow
+  actions: write # start the CI/CD workflow
 
 concurrency:
   group: model-release
@@ -64,5 +64,6 @@ jobs:
       - name: Publish
         run: gh release edit "model-$NAME" --draft=false --latest=false
 
+      # Through CI/CD, so the checks run first: nothing deploys unchecked.
       - name: Redeploy the app with this model
-        run: gh workflow run deploy.yml --ref "${{ github.event.repository.default_branch }}"
+        run: gh workflow run ci-cd.yml --ref "${{ github.event.repository.default_branch }}"

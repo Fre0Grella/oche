@@ -177,8 +177,8 @@ gh workflow run model-release.yml -f name=tips-v1
 
 The "Publish model" workflow (`.github/workflows/model-release.yml`) checks the
 draft's file against the SHA-256 in the committed card and against the
-browser's contract, publishes the release, and starts the Pages deploy. The
-deploy copies the newest published model into the site as
+browser's contract, publishes the release, and starts CI/CD on the default
+branch, which deploys once the checks pass. The deploy copies the newest published model into the site as
 `models/<name>-<hash>.onnx` with a `manifest.json`; the app checks the hash
 before running it. Before a release trained on DeepDarts, confirm on the
 [DataPort page](https://ieee-dataport.org/open-access/deepdarts-dataset) that

@@ -1,0 +1,34 @@
+name: CI/CD
+
+# Checks every push and pull request; on main, deploys once the checks pass.
+# The deploy needs the checks' `success` job, so a red check never reaches the
+# site. Publishing a model starts this workflow too (see model-release.yml).
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to a branch cancels its older run, whose result no longer
+# matters. Not on main: there a run may be deploying, and a newer one waits its
+# turn instead (see the note in deploy.yml).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  ci-cd:
+    uses: ./.github/workflows/check.yml
+
+  deploy:
+    needs: [ci-cd]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
