@@ -17,6 +17,8 @@ const hooks = vi.hoisted(() => ({
   detectorLoads: 0,
   /** What the model finds on the next photograph, in board millimetres. */
   found: [{ x: 0, y: 103 }] as { x: number; y: number }[],
+  /** The model throws on the next photograph instead. */
+  fail: false,
 }));
 
 vi.mock('../vision/useCamera.js', () => ({
@@ -48,13 +50,15 @@ vi.mock('../vision/detector.js', () => ({
     hooks.detectorLoads += 1;
     return {
     manifest: { name: 'test-model', file: 'x.onnx', sha256: 'x' },
-    detect: async () =>
-      hooks.found.map((board) => ({
+    detect: async () => {
+      if (hooks.fail) throw new Error('out of memory');
+      return hooks.found.map((board) => ({
         img: { x: 320, y: 200 },
         board,
         hit: { sector: 20, ring: 'treble', value: 60 },
         confidence: 0.9,
-      })),
+      }));
+    },
     };
   },
 }));
@@ -96,6 +100,7 @@ describe('the capture lab saves only what a person confirmed', () => {
   beforeEach(async () => {
     hooks.stored = [];
     hooks.found = [{ x: 0, y: 103 }];
+    hooks.fail = false;
     URL.createObjectURL = () => 'blob:test';
     URL.revokeObjectURL = () => undefined;
     // Never a blind visit: the model proposes on every photograph here.
@@ -158,6 +163,20 @@ describe('the capture lab saves only what a person confirmed', () => {
     expect(frame!.darts[0]!.by).toBe('model');
     expect(frame!.model).toBe('test-model');
     expect(screen.getByText(/saved: 1 darts/i)).toBeDefined();
+  });
+
+  it('says so when the model looked and saw no new dart', async () => {
+    hooks.found = [];
+    await settle();
+    expect(screen.getByText(/saw no new dart here/i)).toBeDefined();
+  });
+
+  it('says so when the model could not run, instead of looking switched off', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    hooks.fail = true;
+    await settle();
+    expect(screen.getByText(/could not read this photo/i)).toBeDefined();
+    expect(console.warn).toHaveBeenCalled();
   });
 
   it('proposes the second dart of a tight treble 20, right beside the first', async () => {

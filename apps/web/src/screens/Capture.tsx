@@ -103,6 +103,10 @@ interface PendingFrame {
   proposed: number;
   /** The model is still looking. */
   checking: boolean;
+  /** The model looked and found no new dart: said on screen, so it is not mistaken for proposals being off. */
+  missed: boolean;
+  /** The model could not run on this photograph. */
+  failed: boolean;
   /** Held back from the model on purpose, so a person marks it: see BLIND_SHARE. */
   blind: boolean;
   /** Held back because a full visit is still in the board: see awaitingEmptyRef. */
@@ -313,6 +317,8 @@ export function Capture() {
       edited: false,
       proposed: 0,
       checking,
+      missed: false,
+      failed: false,
       blind,
       held,
       ...(model ? { model: model.manifest.name } : {}),
@@ -323,9 +329,14 @@ export function Capture() {
     setPending(opened);
     if (!checking || !model || !current) return;
 
+    let failed = false;
     void model
       .detect(grabbed, current)
-      .catch(() => [])
+      .catch((cause: unknown) => {
+        console.warn('[treblewise] the autoscorer failed on a photograph:', cause);
+        failed = true;
+        return [];
+      })
       .then((detections) => {
         // Only onto the same photograph, and only if nobody has started on it.
         const frame = pendingRef.current;
@@ -335,7 +346,14 @@ export function Capture() {
         // one is proposed and a genuine second dart is tapped by hand.
         const fresh = frame.edited ? [] : proposalsBeside(detections, frame.darts).slice(0, 1);
         const marks: LabelledDart[] = fresh.map((d) => ({ img: d.img, board: d.board, hit: d.hit, by: 'model' }));
-        const next = { ...frame, darts: [...frame.darts, ...marks], proposed: marks.length, checking: false };
+        const next = {
+          ...frame,
+          darts: [...frame.darts, ...marks],
+          proposed: marks.length,
+          checking: false,
+          missed: !failed && marks.length === 0,
+          failed,
+        };
         pendingRef.current = next;
         setPending((p) => (p && p.grabbed === grabbed ? next : p));
         if (marks.length > 0 && callerRef.current) {
@@ -646,6 +664,8 @@ export function Capture() {
       return fill(t.capture.proposal, { hits: hits.join(', ') });
     }
     const fresh = pending.darts.length - pending.carried;
+    if (fresh === 0 && pending.failed) return t.capture.modelFailed;
+    if (fresh === 0 && pending.missed) return t.capture.modelSawNothing;
     if (fresh > 0) {
       return fill(t.capture.markedSoFar, { carried: pending.carried, fresh, total: pending.darts.length });
     }

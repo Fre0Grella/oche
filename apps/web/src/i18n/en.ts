@@ -403,6 +403,8 @@ export const en = {
     boardCleared: 'I pulled the darts out',
     photoSize: 'photos {size}',
     looking: 'Looking for the dart…',
+    modelSawNothing: 'The autoscorer saw no new dart here. Tap it in the picture.',
+    modelFailed: 'The autoscorer could not read this photo. Tap the dart in the picture.',
     proposal: 'I read {hits} (the blue mark). Right? Press "Right — save it". Wrong? Drag the mark onto the tip, then Save.',
     proposingOn: 'Autoscorer proposes (experimental): on',
     proposingOff: 'Autoscorer proposes (experimental): off',
