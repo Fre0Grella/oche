@@ -1512,11 +1512,21 @@ input {
     min-height: 100vh;
   }
 
+  /* Bigger than its half of the screen and faint, as on a phone: it reaches
+     in under the title and the menu, which stay readable on top. */
   .lobby-art {
     left: auto;
-    width: 56%;
-    opacity: 1;
-    padding: 48px;
+    width: 66%;
+    opacity: 0.3;
+    padding: 24px;
+  }
+
+  .lobby-art-frame {
+    width: min(100%, 980px);
+  }
+
+  .lobby-art-board {
+    width: min(100%, 860px);
   }
 
   .lobby-content {
