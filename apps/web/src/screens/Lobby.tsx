@@ -199,7 +199,9 @@ export function Lobby() {
                     className={`lobby-item${isSelected ? ' lobby-item-on' : ''}${entry.id === 'leave' ? ' lobby-item-leave' : ''}`}
                     aria-current={isSelected ? 'true' : undefined}
                     aria-describedby={isSelected ? 'lobby-desc' : undefined}
-                    onPointerEnter={() => setSelectedId(entry.id)}
+                    // On a move, not on entering: an entry can slide under a
+                    // still pointer, and that is not the person choosing it.
+                    onPointerMove={() => setSelectedId(entry.id)}
                     onFocus={() => setSelectedId(entry.id)}
                     onClick={entry.run}
                   >

@@ -1546,17 +1546,33 @@ input {
     font-size: 0.85rem;
   }
 
+  /* The title and the line under it keep the same height whichever entry is
+     selected: two lines and three. When a longer name grew the header, the
+     menu under it moved, the pointer landed on the entry above, that became
+     the selected one, the header shrank, and the two took turns for as long
+     as the mouse moved — the lobby flickered. */
   .lobby-title {
-    display: block;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    /* Room below the second line for the tails of g and p, which the clamp
+       would otherwise cut off. */
+    min-height: calc(2 * 1.08em);
     margin: 4px 0 0;
     font-size: clamp(2.6rem, 5vw, 4.5rem);
     font-weight: 700;
-    line-height: 0.98;
+    line-height: 1.08;
     letter-spacing: -0.02em;
     color: var(--text);
   }
 
   .lobby-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    min-height: calc(3 * 1.5em);
     font-size: 1.05rem;
     line-height: 1.5;
   }

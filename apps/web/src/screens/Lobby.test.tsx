@@ -127,7 +127,7 @@ describe('the lobby', () => {
     expect(screen.getByRole('button', { name: /new game/i }).getAttribute('aria-current')).toBe('true');
     expect(art()).toContain('lobby-art-newGame');
 
-    fireEvent.pointerEnter(screen.getByRole('button', { name: /statistics/i }));
+    fireEvent.pointerMove(screen.getByRole('button', { name: /statistics/i }));
     expect(title()).toBe('Statistics');
     expect(art()).toContain('lobby-art-stats');
     expect(screen.getByRole('button', { name: /statistics/i }).getAttribute('aria-describedby')).toBe('lobby-desc');
