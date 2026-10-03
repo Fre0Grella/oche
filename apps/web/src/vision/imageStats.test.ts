@@ -90,6 +90,24 @@ describe('boardLooksEmpty', () => {
     expect(boardLooksEmpty(withDart(wires()), wires(), W, H)).toBe(false);
   });
 
+  /** The same board, nudged on its bracket by (dx, dy) thumbnail pixels. */
+  const nudged = (base: Uint8Array, dx: number, dy: number) =>
+    base.map((value, index) => {
+      const x = (index % W) - dx;
+      const y = Math.floor(index / W) - dy;
+      return x >= 0 && y >= 0 && x < W && y < H ? base[y * W + x]! : value;
+    });
+
+  it('sees the board empty after pulling the darts out nudged it', () => {
+    const empty = wires();
+    expect(boardLooksEmpty(nudged(empty, 1, 0), empty, W, H)).toBe(true);
+    expect(boardLooksEmpty(nudged(empty, 2, -1), empty, W, H)).toBe(true);
+  });
+
+  it('still sees a dart in a board that was nudged', () => {
+    expect(boardLooksEmpty(withDart(nudged(wires(), 1, 1)), wires(), W, H)).toBe(false);
+  });
+
   it('cannot tell without a reference of the same size', () => {
     expect(boardLooksEmpty(wires(), new Uint8Array(16), W, H)).toBe(false);
   });

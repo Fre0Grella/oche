@@ -93,15 +93,26 @@ export function driftFraction(
   return blocks === 0 ? 0 : moved / blocks;
 }
 
+/** How far, in thumbnail pixels, a block may have moved and still be the same board. */
+const EMPTY_SHIFT = 2;
+
 /**
- * Whether the board looks as it did when it was calibrated, with nothing in
- * it: no block of the thumbnail differs from the reference by as much as the
- * capture trigger counts as a dart landing.
+ * Whether the board looks as it did in `reference` (an empty board), with
+ * nothing in it: no block of the thumbnail differs from the reference by as
+ * much as the capture trigger counts as a dart landing.
  *
- * The overall brightness is taken out first. The reference can be hours old,
- * and a room that got a little darker since moves every block the same way,
- * while a dart moves one or two. The blocks overlap by half, as the capture
- * trigger's do, so a dart on a block boundary still fills most of one.
+ * The overall brightness is taken out first: a room that got a little darker
+ * moves every block the same way, while a dart moves one or two.
+ *
+ * Each block is also compared at small offsets, and its best match counts.
+ * Pulling darts out turns or nudges the board on its bracket; a turn of a
+ * degree or two moves every wire by a pixel or two in the thumbnail, and
+ * compared pixel for pixel the empty board then looked changed everywhere, so
+ * the darts were never seen to be out. A dart still in the board has nothing
+ * in the empty board to line up with, so it still counts.
+ *
+ * The blocks overlap by half, as the capture trigger's do, so a dart on a
+ * block boundary still fills most of one.
  */
 export function boardLooksEmpty(
   current: Uint8Array,
@@ -119,16 +130,25 @@ export function boardLooksEmpty(
   const step = Math.max(1, Math.floor(blockSize / 2));
   for (let by = 0; by + 1 < height; by += step) {
     for (let bx = 0; bx + 1 < width; bx += step) {
-      let total = 0;
-      let count = 0;
-      for (let y = by; y < Math.min(by + blockSize, height); y += 1) {
-        for (let x = bx; x < Math.min(bx + blockSize, width); x += 1) {
-          const i = y * width + x;
-          total += Math.abs(current[i]! - reference[i]! - shift);
-          count += 1;
+      let best = Infinity;
+      for (let sy = -EMPTY_SHIFT; sy <= EMPTY_SHIFT; sy += 1) {
+        for (let sx = -EMPTY_SHIFT; sx <= EMPTY_SHIFT; sx += 1) {
+          let total = 0;
+          let count = 0;
+          for (let y = by; y < Math.min(by + blockSize, height); y += 1) {
+            const ry = y + sy;
+            if (ry < 0 || ry >= height) continue;
+            for (let x = bx; x < Math.min(bx + blockSize, width); x += 1) {
+              const rx = x + sx;
+              if (rx < 0 || rx >= width) continue;
+              total += Math.abs(current[y * width + x]! - reference[ry * width + rx]! - shift);
+              count += 1;
+            }
+          }
+          if (count > 0) best = Math.min(best, total / count);
         }
       }
-      if (count > 0 && total / count >= IMAGE_THRESHOLDS.emptyBlockDifference) return false;
+      if (best >= IMAGE_THRESHOLDS.emptyBlockDifference) return false;
     }
   }
   return true;

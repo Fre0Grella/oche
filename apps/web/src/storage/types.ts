@@ -74,6 +74,12 @@ export interface CapturedFrame {
   /** The model that proposed marks on this frame, if any did. */
   model?: string;
   /**
+   * Where the model proposed a dart that a person said was not there ("No new
+   * dart"). The marks left in `darts` are the whole truth; these are the
+   * model's mistakes on it, kept for finding hard negatives.
+   */
+  rejected?: { img: Point; board: Point }[];
+  /**
    * A person opened this frame afterwards, looked at every mark and said it is
    * right. The strongest label there is: checked twice, the second time with
    * nothing else going on.

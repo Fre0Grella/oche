@@ -392,6 +392,7 @@ export const en = {
     savedNote: 'Saved: {n} darts ({hits}).',
     saveProposal: 'Right — save it',
     skipPhoto: 'Skip this photo',
+    noNewDart: 'No new dart: save without it',
     photoWaiting: 'A newer photo is waiting. Save or skip this one to see it.',
     unsavedTitle: 'This photo has marks that are not saved.',
     unsavedSave: 'Save it',

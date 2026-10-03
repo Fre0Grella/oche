@@ -132,6 +132,7 @@ interface ExportedFrame {
   darts: { img: Point; board: Point; hit: Hit; by?: 'person' | 'model' }[];
   reported?: { hits: string[]; dartIds: string[]; source: string };
   model?: string;
+  rejected?: { img: Point; board: Point }[];
   reviewed?: boolean;
   note?: string;
 }
@@ -161,6 +162,7 @@ export async function exportFrames(frames: readonly CapturedFrame[]): Promise<Bl
       darts: frame.darts,
       ...(frame.reported ? { reported: frame.reported } : {}),
       ...(frame.model ? { model: frame.model } : {}),
+      ...(frame.rejected?.length ? { rejected: frame.rejected } : {}),
       ...(frame.reviewed ? { reviewed: true } : {}),
       ...(frame.note ? { note: frame.note } : {}),
     });

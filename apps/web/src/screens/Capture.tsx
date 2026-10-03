@@ -55,11 +55,12 @@ import {
   type LabelledDart,
 } from '../storage/frames.js';
 import { storageEstimate } from '../storage/db.js';
-import { carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worthSaving } from '../storage/visit.js';
+import { DARTS_PER_VISIT, carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worthSaving } from '../storage/visit.js';
 import { useMatchStore } from '../store/match.js';
 import { THUMB_SIZE, cameraSupported, type GrabbedFrame } from '../vision/camera.js';
 import { loadDetector, loadManifest, type Detector, type ModelManifest } from '../vision/detector.js';
 import { squareAround } from '../vision/crop.js';
+import { NEW_DART_CHANGE, changesAt } from '../vision/changeGate.js';
 import { boardLooksEmpty } from '../vision/imageStats.js';
 import { useCamera } from '../vision/useCamera.js';
 
@@ -210,6 +211,16 @@ export function Capture() {
   /** What each settled photograph looked like to the empty-board check. */
   const emptyFrames = useRef(new WeakMap<GrabbedFrame, boolean>());
   const emptyReferenceRef = useRef<Uint8Array | null>(null);
+  /** The board as it was just before each settle's change. */
+  const beforeFrames = useRef(new WeakMap<GrabbedFrame, Uint8Array>());
+  /**
+   * The empty board as it looked seconds before this visit's first dart: a far
+   * better reference for "the darts are out" than the calibration's, which
+   * can be hours old, taken in another light.
+   */
+  const recentEmptyRef = useRef<Uint8Array | null>(null);
+  /** The last saved photograph of this visit, to tell a new dart from a phantom (changeGate.ts). */
+  const visitPhotoRef = useRef<GrabbedFrame | null>(null);
   const callerRef = useRef(callerEnabled);
   callerRef.current = callerEnabled;
 
@@ -229,15 +240,25 @@ export function Capture() {
    * React calls those twice in development, and a training set with every
    * sample duplicated would be worse than no training set.
    */
-  const savePending = useCallback(async () => {
-    const frame = pendingRef.current;
+  const savePending = useCallback(async (reject = false) => {
+    const opened = pendingRef.current;
+    // "No new dart": the model's marks come off, and the photograph is kept as
+    // the person says it is, a lesson in what is not a dart.
+    // Only this photograph's proposals: a carried dart the model proposed
+    // earlier was confirmed then, and stays.
+    const isProposal = (dart: LabelledDart, index: number) => opened !== null && index >= opened.carried && dart.by === 'model';
+    const frame =
+      opened && reject
+        ? { ...opened, darts: opened.darts.filter((dart, index) => !isProposal(dart, index)), edited: true }
+        : opened;
+    const rejected = opened && reject ? opened.darts.filter(isProposal) : [];
     setLeaving(null);
     const current = calibrationRef.current;
     pendingRef.current = null;
     setPending(null);
 
     if (!frame) return;
-    if (!current || !worthSaving(frame)) {
+    if (!current || (!worthSaving(frame) && rejected.length === 0)) {
       URL.revokeObjectURL(frame.url);
       return;
     }
@@ -260,6 +281,7 @@ export function Capture() {
       darts: frame.darts,
       labelled: true,
       ...(frame.proposed > 0 && frame.model ? { model: frame.model } : {}),
+      ...(rejected.length > 0 ? { rejected: rejected.map((dart) => ({ img: dart.img, board: dart.board })) } : {}),
     };
     if (frame.proposed > 0) {
       const letStand = !frame.edited;
@@ -272,8 +294,10 @@ export function Capture() {
     const after = inBoardAfter(frame.darts);
     inBoardRef.current = after;
     setInBoard(after);
-    setAwaitingEmpty(after.length === 0);
-    if (after.length === 0) startVisit();
+    const full = frame.darts.length >= DARTS_PER_VISIT;
+    setAwaitingEmpty(full);
+    if (full) startVisit();
+    visitPhotoRef.current = after.length > 0 ? frame.grabbed : null;
 
     URL.revokeObjectURL(frame.url);
     await putFrame(stored);
@@ -324,6 +348,7 @@ export function Capture() {
       }
       return;
     }
+    if (carried.length === 0) recentEmptyRef.current = beforeFrames.current.get(grabbed) ?? recentEmptyRef.current;
     const blind = model !== null && blindVisitRef.current;
     const checking = model !== null && current !== null && !blind;
     const previous = pendingRef.current;
@@ -348,21 +373,43 @@ export function Capture() {
     if (!checking || !model || !current) return;
 
     let failed = false;
+    const visitPhoto = carried.length > 0 ? visitPhotoRef.current : null;
     void model
       .detect(grabbed, current)
+      .then(async (detections) => {
+        // Beside darts already in the board, a candidate only counts where the
+        // photograph changed since the last one of this visit (changeGate.ts).
+        const candidates = proposalsBeside(detections, carried);
+        if (!visitPhoto || visitPhoto.width !== grabbed.width || candidates.length === 0) return candidates;
+        try {
+          const changes = await changesAt(
+            visitPhoto.jpeg,
+            grabbed.jpeg,
+            grabbed.width,
+            grabbed.height,
+            current.toImage,
+            candidates.map((candidate) => candidate.board),
+          );
+          return candidates.filter((_, index) => changes[index]! >= NEW_DART_CHANGE);
+        } catch (cause) {
+          // The comparison is a filter on top: without it, propose as before.
+          console.warn('[treblewise] could not compare with the previous photo:', cause);
+          return candidates;
+        }
+      })
       .catch((cause: unknown) => {
         console.warn('[treblewise] the autoscorer failed on a photograph:', cause);
         failed = true;
         return [];
       })
-      .then((detections) => {
+      .then((candidates) => {
         // Only onto the same photograph, and only if nobody has started on it.
         const frame = pendingRef.current;
         if (!frame || frame.grabbed !== grabbed) return;
         // One new dart per photograph is the normal case; a second is rarer than
         // a phantom from a model that has not seen this board, so the strongest
         // one is proposed and a genuine second dart is tapped by hand.
-        const fresh = frame.edited ? [] : proposalsBeside(detections, frame.darts).slice(0, 1);
+        const fresh = frame.edited ? [] : candidates.slice(0, 1);
         const marks: LabelledDart[] = fresh.map((d) => ({ img: d.img, board: d.board, hit: d.hit, by: 'model' }));
         const next = {
           ...frame,
@@ -389,14 +436,17 @@ export function Capture() {
    * Nothing is ever saved here (issue #3).
    */
   const onSettle = useCallback(
-    (grabbed: GrabbedFrame, thumbnail?: Uint8Array) => {
+    (grabbed: GrabbedFrame, thumbnail?: Uint8Array, before?: Uint8Array | null) => {
       if (modeRef.current !== 'try') return;
       const current = calibrationRef.current;
       if (!current) return;
       if (current.width !== grabbed.width || current.height !== grabbed.height) return;
-      const reference = emptyReferenceRef.current;
-      if (thumbnail && reference) {
-        emptyFrames.current.set(grabbed, boardLooksEmpty(thumbnail, reference, THUMB_SIZE, THUMB_SIZE));
+      if (before) beforeFrames.current.set(grabbed, before);
+      if (thumbnail) {
+        const empty = [recentEmptyRef.current, emptyReferenceRef.current].some(
+          (reference) => reference !== null && boardLooksEmpty(thumbnail, reference, THUMB_SIZE, THUMB_SIZE),
+        );
+        emptyFrames.current.set(grabbed, empty);
       }
 
       if (onNewPhoto(pendingRef.current) === 'wait') {
@@ -536,6 +586,7 @@ export function Capture() {
    * removed. With nothing on screen it deletes the last saved photograph.
    */
   const undoLast = async () => {
+    visitPhotoRef.current = null;
     if (pending && pending.darts.length > 0) {
       const wasNew = pending.darts.length > pending.carried;
       setPending((frame) =>
@@ -567,6 +618,7 @@ export function Capture() {
    * screen, and let the model propose again.
    */
   const boardCleared = () => {
+    visitPhotoRef.current = null;
     inBoardRef.current = [];
     setInBoard([]);
     setAwaitingEmpty(false);
@@ -626,6 +678,7 @@ export function Capture() {
     inBoardRef.current = [];
     setInBoard([]);
     setAwaitingEmpty(false);
+    visitPhotoRef.current = null;
     startVisit();
   }, [mode, discardPending]);
 
@@ -765,6 +818,11 @@ export function Capture() {
                 <button type="button" className="chip" onClick={discardPending} disabled={!pending}>
                   {t.capture.skipPhoto}
                 </button>
+                {pending && pending.proposed > 0 && !pending.edited && (
+                  <button type="button" className="chip" onClick={() => void savePending(true)}>
+                    {t.capture.noNewDart}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="chip"

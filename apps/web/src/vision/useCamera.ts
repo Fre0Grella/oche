@@ -52,7 +52,7 @@ export interface UseCameraOptions {
    * Called once per throw, with the frame taken when the board went still and
    * the board-region thumbnail that showed it still.
    */
-  onSettle?: (frame: GrabbedFrame, thumbnail: Uint8Array) => void;
+  onSettle?: (frame: GrabbedFrame, thumbnail: Uint8Array, before: Uint8Array | null) => void;
   /** Set false to watch for motion without photographing anything. */
   captureOnSettle?: boolean;
   /**
@@ -217,6 +217,7 @@ export function useCamera({
           if (state === 'settled' && captureOnSettle && !capturing.current) {
             capturing.current = true;
             const remote = photoSize.current !== null && grabRef.current !== null;
+            const before = detector.current.previousReference;
             const photograph = remote ? grabRef.current!() : grabJpeg(element);
             void photograph
               .then(async (grabbed) => {
@@ -234,7 +235,7 @@ export function useCamera({
                 }
                 if (grabbed && !cancelled) {
                   setSettles((count) => count + 1);
-                  settleHandler.current?.(grabbed, thumb);
+                  settleHandler.current?.(grabbed, thumb, before);
                 }
               })
               .finally(() => {

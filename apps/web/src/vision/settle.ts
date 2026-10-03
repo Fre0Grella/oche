@@ -108,6 +108,14 @@ export class SettleDetector {
     this.lastChange = 0;
   }
 
+  /**
+   * The board as it was before the last settle's change: for the first dart
+   * of a visit, the empty board a few seconds earlier.
+   */
+  get previousReference(): Uint8Array | null {
+    return this.referenceBefore;
+  }
+
   /** Whether anything moved after `at`: a dart in flight, a hand reaching in. */
   movedSince(at: number): boolean {
     return this.lastMotionAt > at;

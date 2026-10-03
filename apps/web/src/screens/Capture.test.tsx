@@ -19,6 +19,8 @@ const hooks = vi.hoisted(() => ({
   found: [{ x: 0, y: 103 }] as { x: number; y: number }[],
   /** The model throws on the next photograph instead. */
   fail: false,
+  /** How much the photograph changed at each candidate since the last one of the visit (changeGate.ts). */
+  change: 50,
 }));
 
 vi.mock('../vision/useCamera.js', () => ({
@@ -63,6 +65,11 @@ vi.mock('../vision/detector.js', () => ({
   },
 }));
 
+vi.mock('../vision/changeGate.js', () => ({
+  NEW_DART_CHANGE: 5,
+  changesAt: async (...args: unknown[]) => (args[5] as unknown[]).map(() => hooks.change),
+}));
+
 vi.mock('../caller/caller.js', () => ({ caller: () => ({ say: () => undefined }), unlockCaller: () => undefined }));
 
 vi.mock('../storage/frames.js', async (importOriginal) => ({
@@ -101,6 +108,7 @@ describe('the capture lab saves only what a person confirmed', () => {
     hooks.stored = [];
     hooks.found = [{ x: 0, y: 103 }];
     hooks.fail = false;
+    hooks.change = 50;
     URL.createObjectURL = () => 'blob:test';
     URL.revokeObjectURL = () => undefined;
     // Never a blind visit: the model proposes on every photograph here.
@@ -226,6 +234,48 @@ describe('the capture lab saves only what a person confirmed', () => {
     hooks.found = [{ x: 20, y: -40 }];
     await settle();
     expect(screen.getByRole('button', { name: /right — save it/i })).toBeDefined();
+  });
+
+  it('does not propose a dart beside an old one where nothing changed', async () => {
+    await settle();
+    await press(/right — save it/i);
+    // A phantom beside the first dart: the model is sure, the photograph says nothing landed.
+    hooks.found = [
+      { x: 0.3, y: 103.2 },
+      { x: 4, y: 103 },
+    ];
+    hooks.change = 1;
+    await settle();
+    expect(screen.queryByRole('button', { name: /right — save it/i })).toBeNull();
+    expect(screen.getByText(/saw no new dart here/i)).toBeDefined();
+  });
+
+  it('keeps a rejected proposal as a photograph with only the old darts', async () => {
+    await settle();
+    await press(/right — save it/i);
+    hooks.found = [
+      { x: 0, y: 103 },
+      { x: 40, y: -40 },
+    ];
+    await settle();
+    await press(/no new dart/i);
+    expect(hooks.stored).toHaveLength(2);
+    const [, rejected] = hooks.stored;
+    expect(rejected!.darts.map((dart) => dart.board)).toEqual([{ x: 0, y: 103 }]);
+    expect(rejected!.rejected).toEqual([{ img: { x: 320, y: 200 }, board: { x: 40, y: -40 } }]);
+    expect(rejected!.model).toBe('test-model');
+    // Still the same visit: the next photograph opens with the one dart.
+    expect(screen.queryByText(/pull them all out/i)).toBeNull();
+  });
+
+  it('keeps a phantom on the empty board as a photograph with nothing in it', async () => {
+    hooks.found = [{ x: 40, y: -40 }];
+    await settle();
+    await press(/no new dart/i);
+    expect(hooks.stored).toHaveLength(1);
+    expect(hooks.stored[0]!.darts).toEqual([]);
+    expect(hooks.stored[0]!.rejected).toHaveLength(1);
+    expect(screen.queryByText(/pull them all out/i)).toBeNull();
   });
 
   it('does not ask for a dart on a photograph of the empty board', async () => {
