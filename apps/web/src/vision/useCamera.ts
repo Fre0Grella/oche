@@ -21,6 +21,9 @@ import {
 import { assessImage, type ImageQuality } from './imageStats.js';
 import { SettleDetector } from './settle.js';
 
+/** How long after a photograph from the phone arrives the video is still watched for movement. */
+const REMOTE_PHOTO_GUARD_MS = 250;
+
 export interface UseCameraOptions {
   active: boolean;
   deviceId?: string;
@@ -213,9 +216,22 @@ export function useCamera({
 
           if (state === 'settled' && captureOnSettle && !capturing.current) {
             capturing.current = true;
-            const photograph = photoSize.current && grabRef.current ? grabRef.current() : grabJpeg(element);
+            const remote = photoSize.current !== null && grabRef.current !== null;
+            const photograph = remote ? grabRef.current!() : grabJpeg(element);
             void photograph
-              .then((grabbed) => {
+              .then(async (grabbed) => {
+                // A frame of the video on screen is the still frame the settle
+                // saw. A photograph from the phone is taken some time later,
+                // after a round trip, and the next dart can be in the air by
+                // then. The video showing that moment arrives a little after
+                // the photograph, hence the wait before looking.
+                if (grabbed && remote) {
+                  await new Promise((resolve) => setTimeout(resolve, REMOTE_PHOTO_GUARD_MS));
+                  if (detector.current.movedSince(now)) {
+                    detector.current.rewind();
+                    return;
+                  }
+                }
                 if (grabbed && !cancelled) {
                   setSettles((count) => count + 1);
                   settleHandler.current?.(grabbed, thumb);

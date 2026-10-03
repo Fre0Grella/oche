@@ -149,6 +149,56 @@ describe('SettleDetector', () => {
     expect(next.filter((state) => state === 'settled')).toHaveLength(1);
   });
 
+  it('says whether anything moved after a settle', () => {
+    const detector = new SettleDetector();
+    const empty = board();
+    let at = 0;
+    detector.push(empty, at);
+    const landed = withDart(empty, 30, 30);
+    let states: SettleState[];
+    [states, at] = hold(detector, landed, at, 1200);
+    const settledAt = at;
+    expect(states).toContain('settled');
+    expect(detector.movedSince(settledAt)).toBe(false);
+
+    // The next dart flies in while the phone is still taking the photograph.
+    at += 33;
+    detector.push(withHand(landed), at);
+    expect(detector.movedSince(settledAt)).toBe(true);
+  });
+
+  it('settles again after a rewind, so a dropped photograph is retaken', () => {
+    const detector = new SettleDetector();
+    const empty = board();
+    let at = 0;
+    detector.push(empty, at);
+    const first = withDart(empty, 10, 10);
+    let states: SettleState[];
+    [states, at] = hold(detector, first, at, 1200);
+    expect(states.filter((state) => state === 'settled')).toHaveLength(1);
+
+    // Its photograph caught something passing in front: drop it, and the
+    // dart that landed is still a change to photograph once all is still.
+    detector.rewind();
+    at += 33;
+    detector.push(withHand(first), at);
+    [states] = hold(detector, first, at, 1200);
+    expect(states.filter((state) => state === 'settled')).toHaveLength(1);
+  });
+
+  it('without a rewind, a wobble that lands nothing new is not photographed again', () => {
+    const detector = new SettleDetector();
+    const empty = board();
+    let at = 0;
+    detector.push(empty, at);
+    const first = withDart(empty, 10, 10);
+    [, at] = hold(detector, first, at, 1200);
+    at += 33;
+    detector.push(withHand(first), at);
+    const [states] = hold(detector, first, at, 1200);
+    expect(states).not.toContain('settled');
+  });
+
   it('exposes both readouts so the thresholds can be set from a real board', () => {
     const detector = new SettleDetector();
     const empty = board();

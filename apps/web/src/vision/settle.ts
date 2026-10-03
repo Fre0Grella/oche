@@ -62,6 +62,8 @@ export class SettleDetector {
   private readonly options: Required<SettleOptions>;
   private previous: Uint8Array | null = null;
   private reference: Uint8Array | null = null;
+  /** The reference before the last settle, for `rewind`. */
+  private referenceBefore: Uint8Array | null = null;
   private lastMotionAt = Number.NEGATIVE_INFINITY;
   private lastCaptureAt = Number.NEGATIVE_INFINITY;
   private state: SettleState = 'idle';
@@ -89,6 +91,7 @@ export class SettleDetector {
   reset(): void {
     this.previous = null;
     this.reference = null;
+    this.referenceBefore = null;
     this.lastMotionAt = Number.NEGATIVE_INFINITY;
     this.lastCaptureAt = Number.NEGATIVE_INFINITY;
     this.state = 'idle';
@@ -103,6 +106,24 @@ export class SettleDetector {
   resetReference(): void {
     this.reference = this.previous;
     this.lastChange = 0;
+  }
+
+  /** Whether anything moved after `at`: a dart in flight, a hand reaching in. */
+  movedSince(at: number): boolean {
+    return this.lastMotionAt > at;
+  }
+
+  /**
+   * Takes the last settle back, when its photograph turned out not to show a
+   * still board. The change that settle saw counts again, so the board is
+   * photographed once it is still, instead of the dart that landed never being
+   * photographed at all.
+   */
+  rewind(): void {
+    if (!this.referenceBefore) return;
+    this.reference = this.referenceBefore;
+    this.referenceBefore = null;
+    this.lastCaptureAt = Number.NEGATIVE_INFINITY;
   }
 
   private meanDifference(a: Uint8Array, b: Uint8Array): number {
@@ -181,6 +202,7 @@ export class SettleDetector {
 
     // The board is still and no longer looks the way it did when we last
     // photographed it: something landed, or something was taken out.
+    this.referenceBefore = this.reference;
     this.reference = thumbnail;
     this.lastCaptureAt = now;
     return 'settled';
