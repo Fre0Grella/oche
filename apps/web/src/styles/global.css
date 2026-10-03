@@ -636,6 +636,48 @@ input {
   gap: var(--gap);
 }
 
+/* Text that can be folded away: a small dim label with a chevron that turns
+   when it opens. Open by default (see Fold). */
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 2px 0;
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold > summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fold[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.fold > summary:hover {
+  color: var(--text);
+}
+
+.fold > :not(summary) {
+  margin-top: 4px;
+}
+
 .capture-status {
   margin: 0;
   font-size: 0.75rem;

@@ -39,6 +39,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoardOverlay, type OverlayHandle } from '../components/BoardOverlay.js';
+import { Fold } from '../components/Fold.js';
 import { SetupCoach } from '../components/SetupCoach.js';
 import { caller, unlockCaller } from '../caller/caller.js';
 import { fill, useStrings } from '../i18n/index.js';
@@ -707,7 +708,9 @@ export function Capture() {
         <div className="capture-side">
           <header className="screen-head">
             <h1>{t.capture.title}</h1>
-            <p>{mode === 'try' ? t.capture.trySubtitle : t.capture.subtitle}</p>
+            <Fold id="capture-about" summary={t.capture.foldAbout}>
+              <p>{mode === 'try' ? t.capture.trySubtitle : t.capture.subtitle}</p>
+            </Fold>
           </header>
 
           {!cameraSupported() && <p className="warning">{t.capture.noCamera}</p>}
@@ -746,85 +749,6 @@ export function Capture() {
 
           {mode === 'try' && (
             <div className="capture-actions">
-              {marked.length > 0 && (
-                <div className="throw-strip">
-                  <span className="throw-who">{fill(t.capture.markedCount, { n: marked.length })}</span>
-                  <span className="throw-darts">
-                    {marked.slice(-4).map((entry) => (
-                      <span key={entry.id} className="dart-chip">
-                        {formatHit(entry.hit)}
-                      </span>
-                    ))}
-                  </span>
-                </div>
-              )}
-
-              <p className="hint">
-                <b>{t.capture.markEveryDart}</b> {t.capture.tryHelp}
-              </p>
-              {savedNote && <p className="hint">{savedNote}</p>}
-              {waiting && <p className="warning">{t.capture.photoWaiting}</p>}
-              {leaving && (
-                <div className="panel" role="alertdialog" aria-label={t.capture.unsavedTitle}>
-                  <p>{t.capture.unsavedTitle}</p>
-                  <div className="controls">
-                    <button
-                      type="button"
-                      className="primary"
-                      onClick={async () => {
-                        const where = leaving;
-                        await savePending();
-                        leave(where);
-                      }}
-                    >
-                      {t.capture.unsavedSave}
-                    </button>
-                    <button
-                      type="button"
-                      className="chip"
-                      onClick={() => {
-                        const where = leaving;
-                        discardPending();
-                        leave(where);
-                      }}
-                    >
-                      {t.capture.unsavedDiscard}
-                    </button>
-                    <button type="button" className="chip" onClick={() => setLeaving(null)}>
-                      {t.capture.unsavedStay}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {modelInfo && (
-                <section className="panel">
-                  <div className="controls">
-                    <button
-                      type="button"
-                      className={`chip${proposing ? ' chip-on' : ''}`}
-                      onClick={() => setProposing((on) => !on)}
-                    >
-                      {proposing ? (detector ? t.capture.proposingOn : t.capture.proposingLoading) : t.capture.proposingOff}
-                    </button>
-                  </div>
-                  <p className="hint">
-                    {proposing ? t.capture.proposingHelp : t.capture.proposingOffHelp}
-                    {pending?.blind && ` ${t.capture.blindFrame}`}
-                  </p>
-                  {verdicts.right + verdicts.corrected > 0 && (
-                    <p className="hint">
-                      {fill(t.capture.verdicts, { right: verdicts.right, n: verdicts.right + verdicts.corrected })}
-                    </p>
-                  )}
-                  <p className="hint">
-                    {fill(t.capture.modelName, { name: modelInfo.name })}
-                    {modelInfo.deepdarts && ` ${t.capture.deepdartsCredit}`}
-                    {modelInfo.dartscribe && ` ${t.capture.dartscribeCredit}`}
-                  </p>
-                </section>
-              )}
-
               <div className="controls">
                 <button
                   type="button"
@@ -874,6 +798,88 @@ export function Capture() {
                   {t.capture.doneTrying}
                 </button>
               </div>
+              {leaving && (
+                <div className="panel" role="alertdialog" aria-label={t.capture.unsavedTitle}>
+                  <p>{t.capture.unsavedTitle}</p>
+                  <div className="controls">
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={async () => {
+                        const where = leaving;
+                        await savePending();
+                        leave(where);
+                      }}
+                    >
+                      {t.capture.unsavedSave}
+                    </button>
+                    <button
+                      type="button"
+                      className="chip"
+                      onClick={() => {
+                        const where = leaving;
+                        discardPending();
+                        leave(where);
+                      }}
+                    >
+                      {t.capture.unsavedDiscard}
+                    </button>
+                    <button type="button" className="chip" onClick={() => setLeaving(null)}>
+                      {t.capture.unsavedStay}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {marked.length > 0 && (
+                <div className="throw-strip">
+                  <span className="throw-who">{fill(t.capture.markedCount, { n: marked.length })}</span>
+                  <span className="throw-darts">
+                    {marked.slice(-4).map((entry) => (
+                      <span key={entry.id} className="dart-chip">
+                        {formatHit(entry.hit)}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              )}
+
+              <Fold id="capture-marking" summary={t.capture.foldMarking}>
+                <p className="hint">
+                  <b>{t.capture.markEveryDart}</b> {t.capture.tryHelp}
+                </p>
+              </Fold>
+              {savedNote && <p className="hint">{savedNote}</p>}
+              {waiting && <p className="warning">{t.capture.photoWaiting}</p>}
+
+              {modelInfo && (
+                <section className="panel">
+                  <div className="controls">
+                    <button
+                      type="button"
+                      className={`chip${proposing ? ' chip-on' : ''}`}
+                      onClick={() => setProposing((on) => !on)}
+                    >
+                      {proposing ? (detector ? t.capture.proposingOn : t.capture.proposingLoading) : t.capture.proposingOff}
+                    </button>
+                  </div>
+                  {pending?.blind && <p className="hint">{t.capture.blindFrame}</p>}
+                  <Fold id="capture-autoscorer" summary={t.capture.foldAutoscorer}>
+                    <p className="hint">{proposing ? t.capture.proposingHelp : t.capture.proposingOffHelp}</p>
+                  </Fold>
+                  {verdicts.right + verdicts.corrected > 0 && (
+                    <p className="hint">
+                      {fill(t.capture.verdicts, { right: verdicts.right, n: verdicts.right + verdicts.corrected })}
+                    </p>
+                  )}
+                  <p className="hint">
+                    {fill(t.capture.modelName, { name: modelInfo.name })}
+                    {modelInfo.deepdarts && ` ${t.capture.deepdartsCredit}`}
+                    {modelInfo.dartscribe && ` ${t.capture.dartscribeCredit}`}
+                  </p>
+                </section>
+              )}
+
             </div>
           )}
         </div>
