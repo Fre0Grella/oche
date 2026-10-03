@@ -20,12 +20,15 @@
   --black-800: #1f1c17;
   --black-700: #2c2820;
   --black-600: #3a352b;
-  --beige-50: #faf6ec;
-  --beige-100: #f4ecd8;
-  --beige-300: #e5d3a8;
-  --beige-400: #c9b78c;
-  --beige-500: #a89a7a;
-  --beige-700: #6b6250;
+  /* Warmer and more saturated than the board's own cream bed, which the
+     board drawing keeps: as an accent the cream read pale against the black.
+     Black ink on --beige-300 is 12:1; --beige-500 text on --bg-raised 6:1. */
+  --beige-50: #fcf8ea;
+  --beige-100: #f8f0d4;
+  --beige-300: #eacf75;
+  --beige-400: #cab160;
+  --beige-500: #ab9c6d;
+  --beige-700: #6f664c;
   --green-500: #00713c;
   --green-400: #1f9a5a;
   --green-300: #4fbf7f;
@@ -52,7 +55,7 @@
   --warn: var(--beige-300);
   --danger: var(--red-400);
   --tint-live: rgb(0 113 60 / 18%);
-  --tint-warn: rgb(229 211 168 / 10%);
+  --tint-warn: rgb(234 207 117 / 10%);
   --tint-danger: rgb(192 24 47 / 16%);
   --scrim: rgb(11 10 8 / 78%);
   --scrim-badge: rgb(11 10 8 / 72%);
