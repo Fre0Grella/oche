@@ -103,6 +103,12 @@ export interface Settings {
   locale: string;
   /** Keep camera frames during a game, so a wrong score can be reported. */
   keepFrames: boolean;
+  /**
+   * In a game, the autoscorer enters every dart it reads (source 'auto'),
+   * and the player corrects what it gets wrong. Off until someone turns it
+   * on: no model has passed the accuracy gate for games yet (docs/03).
+   */
+  autoscoreGames: boolean;
   /** The last calibration, so a session survives a reload. */
   calibration: Calibration | null;
   /**
@@ -118,6 +124,7 @@ export const DEFAULT_SETTINGS: Settings = {
   entryMode: 'board',
   locale: 'en',
   keepFrames: false,
+  autoscoreGames: false,
   calibration: null,
   profilesSeeded: false,
 };

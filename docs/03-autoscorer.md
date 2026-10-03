@@ -301,3 +301,12 @@ Until then, the camera runs in **shadow mode**: it proposes, the player scores
 manually, and the app records how often the two agreed. That number, gathered
 during real games, is the most honest evaluation available, and it costs the
 player nothing.
+
+**Opt-in exception, 2026-10-03.** The maintainer chose to play with tips-v4
+before any model passed the gate (its own-board test PCS was 50%). In a game,
+"Autoscorer scores (experimental)" is off by default; switched on, every dart
+the model reads goes into the score as an `auto` dart and is called, and the
+screen says the model has not been checked for scoring games. A wrong dart is
+corrected by tapping it, and the correction keeps the model's reading as the
+original, so the agreement this section asks for is recorded all the same. The
+gate above still decides when autoscoring may be the default.

@@ -7,10 +7,11 @@ for you, running entirely in the browser.
 **Play it: <https://fre0grella.github.io/treblewise/>** — X01, tap-the-board scoring and
 the spoken caller work today, on a phone or a laptop.
 
-> **Status: planning + foundation.** Nothing here claims to score darts from a
-> camera yet. The autoscorer is a gated track: it does not get wired into the
-> game until a trained model passes a measured accuracy bar on held-out photos
-> of a real board. See [`docs/03-autoscorer.md`](docs/03-autoscorer.md).
+> **Status: experimental autoscoring.** The camera can score darts in a game,
+> but only if you switch it on: no model has passed the accuracy bar on
+> held-out photos of a real board yet, so it is off by default and every dart
+> it enters can be corrected with a tap. See
+> [`docs/03-autoscorer.md`](docs/03-autoscorer.md).
 
 ## What it is
 

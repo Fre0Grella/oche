@@ -55,12 +55,12 @@ import {
   type LabelledDart,
 } from '../storage/frames.js';
 import { storageEstimate } from '../storage/db.js';
-import { DARTS_PER_VISIT, carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worthSaving } from '../storage/visit.js';
+import { DARTS_PER_VISIT, carriedInto, inBoardAfter, newDarts, onNewPhoto, worthSaving } from '../storage/visit.js';
 import { useMatchStore } from '../store/match.js';
 import { THUMB_SIZE, cameraSupported, type GrabbedFrame } from '../vision/camera.js';
 import { loadDetector, loadManifest, type Detector, type ModelManifest } from '../vision/detector.js';
 import { squareAround } from '../vision/crop.js';
-import { NEW_DART_CHANGE, changesAt } from '../vision/changeGate.js';
+import { newDarts as newDartsIn } from '../vision/autoscore.js';
 import { boardLooksEmpty } from '../vision/imageStats.js';
 import { useCamera } from '../vision/useCamera.js';
 
@@ -374,29 +374,9 @@ export function Capture() {
 
     let failed = false;
     const visitPhoto = carried.length > 0 ? visitPhotoRef.current : null;
-    void model
-      .detect(grabbed, current)
-      .then(async (detections) => {
-        // Beside darts already in the board, a candidate only counts where the
-        // photograph changed since the last one of this visit (changeGate.ts).
-        const candidates = proposalsBeside(detections, carried);
-        if (!visitPhoto || visitPhoto.width !== grabbed.width || candidates.length === 0) return candidates;
-        try {
-          const changes = await changesAt(
-            visitPhoto.jpeg,
-            grabbed.jpeg,
-            grabbed.width,
-            grabbed.height,
-            current.toImage,
-            candidates.map((candidate) => candidate.board),
-          );
-          return candidates.filter((_, index) => changes[index]! >= NEW_DART_CHANGE);
-        } catch (cause) {
-          // The comparison is a filter on top: without it, propose as before.
-          console.warn('[treblewise] could not compare with the previous photo:', cause);
-          return candidates;
-        }
-      })
+    // Beside darts already in the board, a candidate only counts where the
+    // photograph changed since the last one of this visit (vision/autoscore.ts).
+    void newDartsIn(model, grabbed, current, carried, visitPhoto)
       .catch((cause: unknown) => {
         console.warn('[treblewise] the autoscorer failed on a photograph:', cause);
         failed = true;

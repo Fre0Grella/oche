@@ -151,7 +151,13 @@ export function Game() {
             ...(dart.pos ? { pos: dart.pos } : {}),
           }))}
           visitComplete={visit?.complete === true}
+          visitInProgress={visitIsCurrent}
+          canThrow={current !== null && !finished}
           onCorrect={(dartId, hit, pos) => correctDart(dartId, hit, pos)}
+          onAutoDart={(hit, pos, confidence) => {
+            unlockCaller();
+            throwDart(hit, { pos, source: 'auto', confidence });
+          }}
         />
       )}
 

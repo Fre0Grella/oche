@@ -479,6 +479,14 @@ export const en = {
   report: {
     button: 'Report',
     markVisit: 'Mark where they landed',
+    autoscoreOn: 'Autoscorer scores (experimental): on',
+    autoscoreOff: 'Autoscorer scores (experimental): off',
+    autoscoreLoading: 'Autoscorer scores (experimental): loading…',
+    autoscoreHelp:
+      'Every dart it reads goes into the score and is called. Wrong? Tap the dart above and enter the right one. Darts that miss the board or bounce out, enter yourself.',
+    autoscoreReading: 'Reading the dart…',
+    autoscorePullOut: 'Pull the darts out: nothing is read until the board is empty, or the next dart is entered by hand.',
+    autoscoreUnchecked: 'Not yet checked for scoring games: watch what it calls.',
     preview: 'Preview',
     title: 'Where did it actually land?',
     help: 'Drag each marker onto the real tip. The score follows the marker, and the frame is kept for training.',

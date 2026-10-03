@@ -53,7 +53,7 @@ export const SAME_DART_MM = 10;
  */
 export function proposalsBeside<T extends { board: { x: number; y: number } }>(
   detections: readonly T[],
-  carried: readonly LabelledDart[],
+  carried: readonly { board: { x: number; y: number } }[],
 ): T[] {
   const pairs: { distance: number; mark: number; detection: number }[] = [];
   carried.forEach((dart, mark) =>

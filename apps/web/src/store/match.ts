@@ -129,6 +129,7 @@ interface MatchState {
   setEntryMode: (mode: Settings['entryMode']) => void;
   saveCalibration: (calibration: Settings['calibration']) => void;
   setKeepFrames: (on: boolean) => void;
+  setAutoscoreGames: (on: boolean) => void;
 
   createProfile: (name: string) => Promise<Profile>;
   addSessionGuest: (name: string) => PlayerConfig;
@@ -367,6 +368,11 @@ export const useMatchStore = create<MatchState>((set, get) => {
     setKeepFrames(keepFrames) {
       set({ settings: { ...get().settings, keepFrames } });
       void saveSetting('keepFrames', keepFrames);
+    },
+
+    setAutoscoreGames(autoscoreGames) {
+      set({ settings: { ...get().settings, autoscoreGames } });
+      void saveSetting('autoscoreGames', autoscoreGames);
     },
 
     async createProfile(name) {

@@ -9,6 +9,14 @@
  * The answer corrects the score *and* becomes a labelled training example from
  * exactly the setup and lighting that caused the mistake, which is the flywheel
  * `docs/03` is built around.
+ *
+ * With "autoscorer scores" on, each settled photograph is also read by the tip
+ * model the way the capture lab reads it (vision/autoscore.ts), and a new dart
+ * goes straight into the score as an 'auto' dart and is called. The player
+ * corrects a wrong one by tapping it, and the correction keeps the model's
+ * reading as the original, which is the agreement measure docs/03 asks for.
+ * After a visit the darts have to come out first: until the board looks empty
+ * again (or the next dart is entered by hand) nothing is read.
  */
 
 import { assessBoardView, boardRegion, formatHit, type Hit, type Point } from '@treblewise/core';
@@ -23,7 +31,10 @@ import {
   type LabelledDart,
 } from '../storage/frames.js';
 import { useMatchStore } from '../store/match.js';
-import { cameraSupported, type GrabbedFrame } from '../vision/camera.js';
+import { newDarts } from '../vision/autoscore.js';
+import { THUMB_SIZE, cameraSupported, type GrabbedFrame } from '../vision/camera.js';
+import { loadDetector, loadManifest, type Detector, type ModelManifest } from '../vision/detector.js';
+import { boardLooksEmpty } from '../vision/imageStats.js';
 import { useCamera } from '../vision/useCamera.js';
 import { BoardOverlay } from './BoardOverlay.js';
 import { SetupCoach } from './SetupCoach.js';
@@ -40,7 +51,13 @@ export interface GameCameraProps {
   darts: ReportableDart[];
   /** True once the visit is thrown: the moment to mark where they landed. */
   visitComplete: boolean;
+  /** The darts above belong to the visit being thrown now, not the last one. */
+  visitInProgress: boolean;
+  /** Someone is to throw: the match is on and not won. */
+  canThrow: boolean;
   onCorrect: (dartId: string, hit: Hit, pos: Point) => void;
+  /** The autoscorer read a new dart. */
+  onAutoDart: (hit: Hit, pos: Point, confidence: number) => void;
 }
 
 function newId(): string {
@@ -49,7 +66,15 @@ function newId(): string {
     : `frame-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 }
 
-export function GameCamera({ matchId, darts, visitComplete, onCorrect }: GameCameraProps) {
+export function GameCamera({
+  matchId,
+  darts,
+  visitComplete,
+  visitInProgress,
+  canThrow,
+  onCorrect,
+  onAutoDart,
+}: GameCameraProps) {
   const t = useStrings();
   const keepFrames = useMatchStore((s) => s.settings.keepFrames);
   const setKeepFrames = useMatchStore((s) => s.setKeepFrames);
@@ -70,9 +95,146 @@ export function GameCamera({ matchId, darts, visitComplete, onCorrect }: GameCam
   const [showPreview, setShowPreview] = useState(false);
   const latestRef = useRef<GrabbedFrame | null>(null);
 
-  const onSettle = useCallback((frame: GrabbedFrame) => {
+  // ---- the autoscorer -----------------------------------------------------
+  const autoscore = useMatchStore((s) => s.settings.autoscoreGames);
+  const setAutoscore = useMatchStore((s) => s.setAutoscoreGames);
+  const [modelInfo, setModelInfo] = useState<ModelManifest | null>(null);
+  const [detector, setDetector] = useState<Detector | null>(null);
+  const [reading, setReading] = useState(false);
+  const [pullingOut, setPullingOut] = useState(false);
+
+  /** Everything a settle needs, as of the last render: settles arrive between renders. */
+  const live = useRef({ darts, visitInProgress, canThrow, calibration, detector, autoscore, onAutoDart });
+  live.current = { darts, visitInProgress, canThrow, calibration, detector, autoscore, onAutoDart };
+  /** The photograph before the one being read: the board with the darts already entered. */
+  const previousRef = useRef<GrabbedFrame | null>(null);
+  /** The empty board as it was just before this visit's first dart. */
+  const recentEmptyRef = useRef<Uint8Array | null>(null);
+  const awaitingEmptyRef = useRef(false);
+  const busyRef = useRef(false);
+  const queuedRef = useRef<GrabbedFrame | null>(null);
+
+  const setAwaitingEmpty = (awaiting: boolean) => {
+    awaitingEmptyRef.current = awaiting;
+    setPullingOut(awaiting);
+  };
+
+  // A finished visit leaves its darts in the board until someone pulls them;
+  // a dart of the next visit entered by hand means they are out.
+  const lastVisitDone = visitComplete && darts.length > 0 && !visitInProgress;
+  const nextVisitStarted = visitInProgress && darts.length > 0;
+  useEffect(() => {
+    if (lastVisitDone) setAwaitingEmpty(true);
+  }, [lastVisitDone]);
+  useEffect(() => {
+    if (nextVisitStarted) setAwaitingEmpty(false);
+  }, [nextVisitStarted]);
+
+  useEffect(() => {
+    if (!keepFrames) return;
+    let cancelled = false;
+    void loadManifest().then((loaded) => {
+      if (!cancelled) setModelInfo(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [keepFrames]);
+
+  useEffect(() => {
+    if (!autoscore || !modelInfo || detector) return;
+    let cancelled = false;
+    void loadDetector().then((loaded) => {
+      if (cancelled) return;
+      setDetector(loaded);
+      if (!loaded) setAutoscore(false); // it cannot run here: say so by switching back off
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [autoscore, modelInfo, detector, setAutoscore]);
+
+  const read = useCallback(async (frame: GrabbedFrame) => {
+    const state = live.current;
+    const model = state.detector;
+    const calibrated = state.calibration;
+    if (!model || !calibrated) return;
+    const inVisit = state.visitInProgress ? state.darts : [];
+    const carried = inVisit.map((dart) => ({ board: dart.pos! }));
+    const previous = previousRef.current;
+    busyRef.current = true;
+    setReading(true);
+    try {
+      const [best] = await newDarts(model, frame, calibrated, carried, inVisit.length > 0 ? previous : null);
+      // Only if the visit is where it was: a dart entered by hand meanwhile wins.
+      const now = live.current;
+      const nowInVisit = now.visitInProgress ? now.darts.length : 0;
+      if (best && now.autoscore && now.canThrow && nowInVisit === inVisit.length) {
+        now.onAutoDart(best.hit, best.board, best.confidence);
+      }
+    } catch (cause) {
+      console.warn('[treblewise] the autoscorer failed on a photograph:', cause);
+    } finally {
+      previousRef.current = frame;
+      busyRef.current = false;
+      setReading(false);
+      const next = queuedRef.current;
+      queuedRef.current = null;
+      if (next) void readRef.current(next);
+    }
+  }, []);
+  const readRef = useRef(read);
+  readRef.current = read;
+
+  const onSettle = useCallback((frame: GrabbedFrame, thumbnail?: Uint8Array, before?: Uint8Array | null) => {
     latestRef.current = frame;
     setLatest(frame);
+
+    const state = live.current;
+    const calibrated = state.calibration;
+    const ready =
+      state.autoscore &&
+      state.detector !== null &&
+      state.canThrow &&
+      calibrated !== null &&
+      calibrated.width === frame.width &&
+      calibrated.height === frame.height;
+    if (!ready) {
+      previousRef.current = frame;
+      return;
+    }
+
+    const references = [recentEmptyRef.current, calibrated.reference ? Uint8Array.from(calibrated.reference) : null];
+    const empty =
+      thumbnail !== undefined &&
+      references.some((reference) => reference !== null && boardLooksEmpty(thumbnail, reference, THUMB_SIZE, THUMB_SIZE));
+
+    if (awaitingEmptyRef.current) {
+      if (empty) setAwaitingEmpty(false);
+      previousRef.current = frame;
+      return;
+    }
+
+    const inVisit = state.visitInProgress ? state.darts : [];
+    // Three in already, or one entered by number with no position to tell it
+    // apart from the next: that visit is the player's to finish.
+    if (inVisit.length >= 3 || inVisit.some((dart) => !dart.pos)) {
+      previousRef.current = frame;
+      return;
+    }
+    if (inVisit.length === 0) {
+      if (before) recentEmptyRef.current = before;
+      if (empty) {
+        previousRef.current = frame;
+        return;
+      }
+    }
+
+    if (busyRef.current) {
+      queuedRef.current = frame;
+      return;
+    }
+    void readRef.current(frame);
   }, []);
 
   // The capture trigger looks only at the board — see vision/settle.ts.
@@ -230,6 +392,32 @@ export function GameCamera({ matchId, darts, visitComplete, onCorrect }: GameCam
           </button>
         )}
       </div>
+
+      {keepFrames && calibration && modelInfo && (
+        <div className="controls">
+          <button
+            type="button"
+            className={`chip${autoscore ? ' chip-on' : ''}`}
+            onClick={() => setAutoscore(!autoscore)}
+            disabled={!canThrow && !autoscore}
+          >
+            {autoscore ? (detector ? t.report.autoscoreOn : t.report.autoscoreLoading) : t.report.autoscoreOff}
+          </button>
+          {autoscore && pullingOut && (
+            <button type="button" className="chip" onClick={() => setAwaitingEmpty(false)}>
+              {t.capture.boardCleared}
+            </button>
+          )}
+        </div>
+      )}
+      {keepFrames && calibration && modelInfo && autoscore && (
+        <p className="hint">
+          {pullingOut ? t.report.autoscorePullOut : reading ? t.report.autoscoreReading : t.report.autoscoreHelp}{' '}
+          {fill(t.capture.modelName, { name: modelInfo.name })} {t.report.autoscoreUnchecked}
+          {modelInfo.deepdarts && ` ${t.capture.deepdartsCredit}`}
+          {modelInfo.dartscribe && ` ${t.capture.dartscribeCredit}`}
+        </p>
+      )}
 
       {saved && <p className="hint">{saved}</p>}
 
