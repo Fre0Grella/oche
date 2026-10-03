@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ControlMessage, PairState, PairingConnection } from '../pairing/session.js';
@@ -114,5 +114,41 @@ describe('the lobby', () => {
     expect(useMatchStore.getState().pairing).toBeNull();
     // Still in the session: once the new pairing connects, it is the lobby again.
     expect(useMatchStore.getState().session).toBe('paired');
+  });
+
+  it('names the selected entry, and follows the pointer and the keyboard', async () => {
+    act(() => useMatchStore.getState().enterLobby('solo'));
+    const { container } = render(<Lobby />);
+    const title = () => container.querySelector('.lobby-title')!.textContent;
+    const art = () => container.querySelector('.lobby-art-frame')!.className;
+
+    // The first entry leads: with no match in progress, a new game.
+    expect(title()).toBe('New game');
+    expect(screen.getByRole('button', { name: /new game/i }).getAttribute('aria-current')).toBe('true');
+    expect(art()).toContain('lobby-art-newGame');
+
+    fireEvent.pointerEnter(screen.getByRole('button', { name: /statistics/i }));
+    expect(title()).toBe('Statistics');
+    expect(art()).toContain('lobby-art-stats');
+    expect(screen.getByRole('button', { name: /statistics/i }).getAttribute('aria-describedby')).toBe('lobby-desc');
+
+    // Arrow keys move the selection and the focus together, and wrap.
+    const list = container.querySelector('.lobby-menu ul')!;
+    fireEvent.keyDown(list, { key: 'ArrowDown' });
+    expect(title()).toBe('Leave the lobby');
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /leave the lobby/i }));
+    fireEvent.keyDown(list, { key: 'ArrowDown' });
+    expect(title()).toBe('New game');
+    fireEvent.keyDown(list, { key: 'End' });
+    expect(title()).toBe('Leave the lobby');
+  });
+
+  it('leads with resuming when a match is in progress', () => {
+    act(() => useMatchStore.getState().enterLobby('solo'));
+    useMatchStore.setState({
+      match: { id: 'm', createdAt: 0, updatedAt: 0, finished: false, events: [{} as never], config: {} as never },
+    });
+    const { container } = render(<Lobby />);
+    expect(container.querySelector('.lobby-title')!.textContent).toBe('Resume the match');
   });
 });

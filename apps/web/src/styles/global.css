@@ -981,7 +981,12 @@ input {
   .mode-waves .wave,
   .coach-error .coach-dot,
   .dartboard-target,
-  .landing-backdrop-board > svg {
+  .landing-backdrop-board > svg,
+  .lobby-art-frame,
+  .lobby-art-board > svg,
+  .lobby-art-pulse,
+  .lobby-art-bar,
+  .lobby-art-drift {
     animation: none;
   }
 }
@@ -1330,17 +1335,236 @@ input {
 
 /* ---------- lobby ---------- */
 
-.lobby-menu {
+/* Laid out like a console game's lobby (issue #7). On a phone the menu fills
+   the screen and the picture sits behind it, faint; from 900px wide the menu
+   moves to the bottom left, the selected entry is named large in the top left,
+   and its picture fills the right. */
+.lobby {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.lobby-art {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0.16;
+  z-index: 0;
+}
+
+.lobby-art-frame {
+  width: min(92%, 640px);
+  color: var(--text);
+  animation: lobby-art-in 320ms ease-out;
+}
+
+.lobby-art-frame .lobby-art-svg,
+.lobby-art-frame .mode-art {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* The mode chooser's drawings sit on their own dark card; here they float. */
+.lobby-art-frame .mode-art {
+  background: none;
+  padding: 0;
+}
+
+.lobby-art-board {
+  width: min(100%, 520px);
+  margin: 0 auto;
+  aspect-ratio: 1;
+}
+
+.lobby-art-board > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  animation: board-spin 180s linear infinite;
+}
+
+.lobby-art-pulse {
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+.lobby-art-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: lobby-bar-in 600ms ease-out both;
+}
+
+.lobby-art-drift {
+  animation: lobby-drift 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes lobby-art-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes lobby-bar-in {
+  from {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes lobby-drift {
+  to {
+    transform: translateX(10px);
+  }
+}
+
+.lobby-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: min(100%, 420px);
+  gap: 16px;
+  min-height: 100%;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  max-width: 760px;
   margin: 0 auto;
 }
 
-.lobby-menu > button {
+.lobby-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lobby-kicker {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+/* The big name of the selected entry: a desktop thing. On a phone the menu
+   says it already. */
+.lobby-title {
+  display: none;
+}
+
+.lobby-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  max-width: 46ch;
+}
+
+.lobby-menu {
+  margin-top: auto;
+}
+
+.lobby-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobby-item {
   width: 100%;
-  min-height: 48px;
+  min-height: 56px;
+  padding: 12px 18px;
+  text-align: left;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgb(31 28 23 / 82%);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+/* The selected entry: the beige of the accent, with the board's red and
+   green as a ring-like edge on the side it points from. */
+.lobby-item-on,
+.lobby-item-on:hover:not(:disabled) {
+  background: var(--action);
+  color: var(--action-ink);
+  border-color: transparent;
+  box-shadow: inset 5px 0 0 var(--ring-a), inset 10px 0 0 var(--ring-b);
+  padding-left: 26px;
+}
+
+.lobby-item-leave:not(.lobby-item-on) {
+  color: var(--text-dim);
+}
+
+.lobby-confirm p {
+  margin: 0;
+}
+
+@media (min-width: 900px) {
+  .lobby {
+    min-height: 100vh;
+  }
+
+  .lobby-art {
+    left: auto;
+    width: 56%;
+    opacity: 1;
+    padding: 48px;
+  }
+
+  .lobby-content {
+    max-width: none;
+    width: 46%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 56px 0 56px 64px;
+    gap: 24px;
+  }
+
+  .lobby-kicker {
+    font-size: 0.85rem;
+  }
+
+  .lobby-title {
+    display: block;
+    margin: 4px 0 0;
+    font-size: clamp(2.6rem, 5vw, 4.5rem);
+    font-weight: 700;
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .lobby-desc {
+    font-size: 1.05rem;
+    line-height: 1.5;
+  }
+
+  .lobby-menu ul {
+    width: min(100%, 420px);
+  }
+
+  .lobby-item {
+    min-height: 50px;
+  }
+
+  /* Only the entries that are not selected go bare: the selected one keeps
+     its beige face, or it would be dark ink on a dark page. */
+  .lobby-item:not(.lobby-item-on) {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .lobby-item:hover:not(:disabled):not(.lobby-item-on) {
+    background: var(--bg-raised);
+  }
 }
 
 /* ---------- review ---------- */
