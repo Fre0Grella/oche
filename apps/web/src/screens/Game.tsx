@@ -66,6 +66,7 @@ export function Game() {
       setCorrecting(null);
       return;
     }
+    if (settings.soundsEnabled) playThud();
     throwDart(hit, pos ? { pos } : {});
   };
 
