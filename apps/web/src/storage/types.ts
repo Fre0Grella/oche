@@ -99,6 +99,8 @@ export interface Profile {
 
 export interface Settings {
   callerEnabled: boolean;
+  /** The dart going in and the turn passing, as sounds (caller/sounds.ts). */
+  soundsEnabled: boolean;
   entryMode: 'board' | 'keypad';
   locale: string;
   /** Keep camera frames during a game, so a wrong score can be reported. */
@@ -121,6 +123,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   callerEnabled: true,
+  soundsEnabled: true,
   entryMode: 'board',
   locale: 'en',
   keepFrames: false,

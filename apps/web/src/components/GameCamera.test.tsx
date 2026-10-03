@@ -75,6 +75,8 @@ const T20: Hit = { sector: 20, ring: 'treble', value: 60 };
 
 describe('the autoscorer in a game', () => {
   const onAutoDart = vi.fn<(hit: Hit, pos: Point, confidence: number) => void>();
+  const onDartsPulled = vi.fn<(remaining: number) => void>();
+  const onTurnPassed = vi.fn<() => void>();
 
   function camera(props: { darts?: ReportableDart[]; visitComplete?: boolean; visitInProgress?: boolean }) {
     return (
@@ -86,12 +88,16 @@ describe('the autoscorer in a game', () => {
         canThrow
         onCorrect={() => undefined}
         onAutoDart={onAutoDart}
+        onDartsPulled={onDartsPulled}
+        onTurnPassed={onTurnPassed}
       />
     );
   }
 
   beforeEach(async () => {
     onAutoDart.mockReset();
+    onDartsPulled.mockReset();
+    onTurnPassed.mockReset();
     hooks.found = [];
     const { calibrate } = await import('../storage/frames.js');
     const imagePoints = [
@@ -156,9 +162,28 @@ describe('the autoscorer in a game', () => {
     await settle(); // a hand pulling the darts: all three still seen
     expect(onAutoDart).not.toHaveBeenCalled();
 
-    await settle(EMPTY); // out
+    expect(onTurnPassed).not.toHaveBeenCalled();
+    await settle(EMPTY); // out: the next player is up
     expect(onAutoDart).not.toHaveBeenCalled();
+    expect(onTurnPassed).toHaveBeenCalledTimes(1);
 
+    hooks.found = [{ x: 30, y: -50 }];
+    await settle();
+    expect(onAutoDart).toHaveBeenCalledTimes(1);
+  });
+
+  it('ends a visit pulled out early: the darts not in the board missed it', async () => {
+    const two = [
+      { id: 'a', hit: T20, pos: { x: 0, y: 103 } },
+      { id: 'b', hit: T20, pos: { x: 5, y: 103 } },
+    ];
+    const view = await start({ darts: two, visitInProgress: true });
+    await settle(EMPTY);
+    expect(onDartsPulled).toHaveBeenCalledWith(1);
+
+    // The missing dart is entered and the visit ends; its darts are already
+    // out, so the next dart thrown is read straight away.
+    view.rerender(camera({ darts: [...two, { id: 'c', hit: { sector: 0, ring: 'miss', value: 0 } }], visitComplete: true }));
     hooks.found = [{ x: 30, y: -50 }];
     await settle();
     expect(onAutoDart).toHaveBeenCalledTimes(1);

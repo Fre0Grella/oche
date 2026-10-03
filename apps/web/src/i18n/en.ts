@@ -121,6 +121,8 @@ export const en = {
     caller: 'Caller',
     callerOn: 'Caller on',
     callerOff: 'Caller off',
+    soundsOn: 'Sounds on',
+    soundsOff: 'Sounds off',
     toThrow: 'to throw',
     busted: 'No score',
     youRequire: 'requires',

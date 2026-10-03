@@ -1,11 +1,12 @@
-import { formatHit, formatRoute, type Hit, type Point } from '@treblewise/core';
-import { useState } from 'react';
+import { MISS, formatHit, formatRoute, type Hit, type Point } from '@treblewise/core';
+import { useEffect, useRef, useState } from 'react';
 
 import { Dartboard, type BoardDart } from '../components/Dartboard.js';
 import { GameCamera } from '../components/GameCamera.js';
 import { Keypad } from '../components/Keypad.js';
 import { Scoreboard } from '../components/Scoreboard.js';
 import { unlockCaller } from '../caller/caller.js';
+import { playThud, playTurn, unlockSounds } from '../caller/sounds.js';
 import { fill, useStrings } from '../i18n/index.js';
 import { useMatchStore } from '../store/match.js';
 
@@ -18,6 +19,7 @@ export function Game() {
   const correctDart = useMatchStore((s) => s.correctDart);
   const undo = useMatchStore((s) => s.undo);
   const toggleCaller = useMatchStore((s) => s.toggleCaller);
+  const toggleSounds = useMatchStore((s) => s.toggleSounds);
   const setEntryMode = useMatchStore((s) => s.setEntryMode);
   const setScreen = useMatchStore((s) => s.setScreen);
   const goHome = useMatchStore((s) => s.goHome);
@@ -25,6 +27,17 @@ export function Game() {
 
   /** id of the dart being corrected, if any. */
   const [correcting, setCorrecting] = useState<string | null>(null);
+
+  // The turn passing is a sound. With the autoscorer scoring, it sounds when
+  // the darts come out (GameCamera says when); otherwise when a visit ends.
+  const autoscoring = settings.keepFrames && settings.autoscoreGames;
+  const visitsDone = snapshot?.legs.reduce((n, leg) => n + leg.visits.filter((v) => v.complete).length, 0) ?? 0;
+  const visitsDoneBefore = useRef(visitsDone);
+  useEffect(() => {
+    const more = visitsDone > visitsDoneBefore.current;
+    visitsDoneBefore.current = visitsDone;
+    if (more && !autoscoring && settings.soundsEnabled && snapshot?.winnerId === null) playTurn();
+  }, [visitsDone, autoscoring, settings.soundsEnabled, snapshot?.winnerId]);
 
   if (!snapshot) return null;
 
@@ -47,6 +60,7 @@ export function Game() {
 
   const record = (hit: Hit, pos?: Point) => {
     unlockCaller();
+    unlockSounds();
     if (correcting) {
       correctDart(correcting, hit, pos);
       setCorrecting(null);
@@ -122,6 +136,16 @@ export function Game() {
         </button>
         <button
           type="button"
+          className={`chip${settings.soundsEnabled ? ' chip-on' : ''}`}
+          onClick={() => {
+            unlockSounds();
+            toggleSounds();
+          }}
+        >
+          {settings.soundsEnabled ? t.game.soundsOn : t.game.soundsOff}
+        </button>
+        <button
+          type="button"
           className="chip"
           onClick={() => setEntryMode(settings.entryMode === 'board' ? 'keypad' : 'board')}
         >
@@ -155,8 +179,16 @@ export function Game() {
           canThrow={current !== null && !finished}
           onCorrect={(dartId, hit, pos) => correctDart(dartId, hit, pos)}
           onAutoDart={(hit, pos, confidence) => {
-            unlockCaller();
-            throwDart(hit, { pos, source: 'auto', confidence });
+            if (settings.soundsEnabled) playThud();
+            throwDart(hit, { pos, source: 'auto', confidence, call: true });
+          }}
+          onDartsPulled={(remaining) => {
+            // Pulled out with darts still to throw: the rest missed the board.
+            for (let n = 0; n < remaining; n += 1) throwDart(MISS, { source: 'auto' });
+            if (settings.soundsEnabled) playTurn();
+          }}
+          onTurnPassed={() => {
+            if (settings.soundsEnabled) playTurn();
           }}
         />
       )}

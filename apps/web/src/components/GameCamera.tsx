@@ -31,6 +31,8 @@ import {
   type LabelledDart,
 } from '../storage/frames.js';
 import { useMatchStore } from '../store/match.js';
+import { unlockCaller } from '../caller/caller.js';
+import { unlockSounds } from '../caller/sounds.js';
 import { newDarts } from '../vision/autoscore.js';
 import { THUMB_SIZE, cameraSupported, type GrabbedFrame } from '../vision/camera.js';
 import { loadDetector, loadManifest, type Detector, type ModelManifest } from '../vision/detector.js';
@@ -58,6 +60,10 @@ export interface GameCameraProps {
   onCorrect: (dartId: string, hit: Hit, pos: Point) => void;
   /** The autoscorer read a new dart. */
   onAutoDart: (hit: Hit, pos: Point, confidence: number) => void;
+  /** The darts came out with `remaining` of the visit unthrown: those missed the board. */
+  onDartsPulled: (remaining: number) => void;
+  /** The darts of a finished visit came out: the next player is up. */
+  onTurnPassed: () => void;
 }
 
 function newId(): string {
@@ -74,6 +80,8 @@ export function GameCamera({
   canThrow,
   onCorrect,
   onAutoDart,
+  onDartsPulled,
+  onTurnPassed,
 }: GameCameraProps) {
   const t = useStrings();
   const keepFrames = useMatchStore((s) => s.settings.keepFrames);
@@ -104,8 +112,10 @@ export function GameCamera({
   const [pullingOut, setPullingOut] = useState(false);
 
   /** Everything a settle needs, as of the last render: settles arrive between renders. */
-  const live = useRef({ darts, visitInProgress, canThrow, calibration, detector, autoscore, onAutoDart });
-  live.current = { darts, visitInProgress, canThrow, calibration, detector, autoscore, onAutoDart };
+  const live = useRef({ darts, visitInProgress, canThrow, calibration, detector, autoscore, onAutoDart, onDartsPulled, onTurnPassed });
+  live.current = { darts, visitInProgress, canThrow, calibration, detector, autoscore, onAutoDart, onDartsPulled, onTurnPassed };
+  /** The visit just ended because its darts were seen coming out: nothing left to wait for. */
+  const pulledRef = useRef(false);
   /** The photograph before the one being read: the board with the darts already entered. */
   const previousRef = useRef<GrabbedFrame | null>(null);
   /** The empty board as it was just before this visit's first dart. */
@@ -124,7 +134,9 @@ export function GameCamera({
   const lastVisitDone = visitComplete && darts.length > 0 && !visitInProgress;
   const nextVisitStarted = visitInProgress && darts.length > 0;
   useEffect(() => {
-    if (lastVisitDone) setAwaitingEmpty(true);
+    if (!lastVisitDone) return;
+    if (pulledRef.current) pulledRef.current = false;
+    else setAwaitingEmpty(true);
   }, [lastVisitDone]);
   useEffect(() => {
     if (nextVisitStarted) setAwaitingEmpty(false);
@@ -210,12 +222,22 @@ export function GameCamera({
       references.some((reference) => reference !== null && boardLooksEmpty(thumbnail, reference, THUMB_SIZE, THUMB_SIZE));
 
     if (awaitingEmptyRef.current) {
-      if (empty) setAwaitingEmpty(false);
+      if (empty) {
+        setAwaitingEmpty(false);
+        state.onTurnPassed();
+      }
       previousRef.current = frame;
       return;
     }
 
     const inVisit = state.visitInProgress ? state.darts : [];
+    // Out before the visit was thrown: the darts not in the board missed it.
+    if (inVisit.length > 0 && inVisit.length < 3 && empty) {
+      previousRef.current = frame;
+      pulledRef.current = true;
+      state.onDartsPulled(3 - inVisit.length);
+      return;
+    }
     // Three in already, or one entered by number with no position to tell it
     // apart from the next: that visit is the player's to finish.
     if (inVisit.length >= 3 || inVisit.some((dart) => !dart.pos)) {
@@ -398,13 +420,24 @@ export function GameCamera({
           <button
             type="button"
             className={`chip${autoscore ? ' chip-on' : ''}`}
-            onClick={() => setAutoscore(!autoscore)}
+            onClick={() => {
+              unlockCaller();
+              unlockSounds();
+              setAutoscore(!autoscore);
+            }}
             disabled={!canThrow && !autoscore}
           >
             {autoscore ? (detector ? t.report.autoscoreOn : t.report.autoscoreLoading) : t.report.autoscoreOff}
           </button>
           {autoscore && pullingOut && (
-            <button type="button" className="chip" onClick={() => setAwaitingEmpty(false)}>
+            <button
+              type="button"
+              className="chip"
+              onClick={() => {
+                setAwaitingEmpty(false);
+                onTurnPassed();
+              }}
+            >
               {t.capture.boardCleared}
             </button>
           )}

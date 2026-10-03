@@ -21,6 +21,7 @@ import { create } from 'zustand';
 
 import { announce } from '../caller/announce.js';
 import { caller } from '../caller/caller.js';
+import { strings } from '../i18n/index.js';
 import {
   DEFAULT_SETTINGS,
   deleteMatch as deleteStoredMatch,
@@ -83,6 +84,8 @@ export interface ThrowOptions {
   source?: DartSource;
   confidence?: number;
   frameRef?: string;
+  /** Say this dart's score as it goes in: the autoscorer's darts are called one by one. */
+  call?: boolean;
 }
 
 interface MatchState {
@@ -126,6 +129,7 @@ interface MatchState {
   undo: () => void;
 
   toggleCaller: () => void;
+  toggleSounds: () => void;
   setEntryMode: (mode: Settings['entryMode']) => void;
   saveCalibration: (calibration: Settings['calibration']) => void;
   setKeepFrames: (on: boolean) => void;
@@ -155,7 +159,7 @@ function newId(): string {
 
 export const useMatchStore = create<MatchState>((set, get) => {
   /** Applies a new event list: folds it, persists it, and calls the score. */
-  const commit = (events: MatchEvent[], options: { speak?: boolean } = {}) => {
+  const commit = (events: MatchEvent[], options: { speak?: boolean; first?: string[] } = {}) => {
     const state = get();
     if (!state.match) return;
 
@@ -172,7 +176,7 @@ export const useMatchStore = create<MatchState>((set, get) => {
     void putMatch(match);
 
     if (options.speak !== false && state.settings.callerEnabled) {
-      const phrases = announce(previous, snapshot);
+      const phrases = [...(options.first ?? []), ...announce(previous, snapshot)];
       if (phrases.length > 0) caller().sequence(phrases);
     }
   };
@@ -321,7 +325,7 @@ export const useMatchStore = create<MatchState>((set, get) => {
         ...(options.frameRef ? { frameRef: options.frameRef } : {}),
       };
 
-      commit([...match.events, event]);
+      commit([...match.events, event], options.call ? { first: [strings().caller.hit(hit)] } : {});
     },
 
     correctDart(dartId, hit, pos) {
@@ -346,6 +350,12 @@ export const useMatchStore = create<MatchState>((set, get) => {
       if (!match || match.events.length === 0) return;
       caller().cancel();
       commit(match.events.slice(0, -1), { speak: false });
+    },
+
+    toggleSounds() {
+      const soundsEnabled = !get().settings.soundsEnabled;
+      set({ settings: { ...get().settings, soundsEnabled } });
+      void saveSetting('soundsEnabled', soundsEnabled);
     },
 
     toggleCaller() {

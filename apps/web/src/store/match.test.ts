@@ -1,6 +1,8 @@
 import { hit, parseHit } from '@treblewise/core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { caller } from '../caller/caller.js';
+import { strings } from '../i18n/index.js';
 import { useMatchStore } from './match.js';
 
 const config = {
@@ -38,6 +40,23 @@ describe('the match store', () => {
     const first = snapshot.legs[0]!.visits[0]!.darts[0]!;
     expect(first.pos).toEqual({ x: 0, y: 103 });
     expect(first.source).toBe('manual');
+  });
+
+  it('calls an autoscored dart as it goes in, and the visit when it ends', () => {
+    const voice = caller();
+    const said = vi.spyOn(voice, 'sequence');
+    useMatchStore.setState((state) => ({ settings: { ...state.settings, callerEnabled: true } }));
+    useMatchStore.getState().startMatch(config);
+
+    useMatchStore.getState().throwDart(hit(20, 'treble'), { source: 'auto', call: true });
+    expect(said).toHaveBeenLastCalledWith([strings().caller.hit(hit(20, 'treble'))]);
+
+    useMatchStore.getState().throwDart(hit(20, 'treble'), { source: 'auto', call: true });
+    useMatchStore.getState().throwDart(hit(20, 'treble'), { source: 'auto', call: true });
+    const last = said.mock.lastCall![0];
+    expect(last[0]).toBe(strings().caller.hit(hit(20, 'treble')));
+    expect(last[1]).toBe(strings().caller.visit(180));
+    said.mockRestore();
   });
 
   it('undoes the last dart', () => {
