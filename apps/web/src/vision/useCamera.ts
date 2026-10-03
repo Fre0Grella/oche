@@ -79,6 +79,11 @@ export interface CameraState {
   /** The two numbers the capture trigger works on, for tuning on a real board. */
   motion: number;
   change: number;
+  /**
+   * The last photograph: how long from the settle to having it, and how many
+   * have been dropped because the board changed while they were taken.
+   */
+  photo: { ms: number; dropped: number } | null;
   /** Light, glare, sharpness and drift, for the setup coach. */
   quality: ImageQuality | null;
   capture: () => Promise<GrabbedFrame | null>;
@@ -102,6 +107,7 @@ export function useCamera({
   const detector = useRef(new SettleDetector({ width: THUMB_SIZE, height: THUMB_SIZE }));
   const settleHandler = useRef(onSettle);
   const capturing = useRef(false);
+  const dropped = useRef(0);
   const regionRef = useRef(region);
   regionRef.current = region;
   const referenceRef = useRef(reference);
@@ -113,6 +119,7 @@ export function useCamera({
   const [moving, setMoving] = useState(false);
   const [settles, setSettles] = useState(0);
   const [readout, setReadout] = useState({ motion: 0, change: 0 });
+  const [photoStats, setPhotoStats] = useState<{ ms: number; dropped: number } | null>(null);
   const [quality, setQuality] = useState<ImageQuality | null>(null);
 
   settleHandler.current = onSettle;
@@ -221,6 +228,7 @@ export function useCamera({
             const photograph = remote ? grabRef.current!() : grabJpeg(element);
             void photograph
               .then(async (grabbed) => {
+                const took = Math.round(performance.now() - now);
                 // A frame of the video on screen is the still frame the settle
                 // saw. A photograph from the phone is taken some time later,
                 // after a round trip, and the next dart can be in the air by
@@ -228,11 +236,15 @@ export function useCamera({
                 // the photograph, hence the wait before looking.
                 if (grabbed && remote) {
                   await new Promise((resolve) => setTimeout(resolve, REMOTE_PHOTO_GUARD_MS));
-                  if (detector.current.movedSince(now)) {
+                  if (detector.current.changedSince(thumb)) {
                     detector.current.rewind();
+                    dropped.current += 1;
+                    setPhotoStats({ ms: took, dropped: dropped.current });
+                    console.info(`[treblewise] photo dropped: the board changed while it was taken (${took} ms)`);
                     return;
                   }
                 }
+                setPhotoStats({ ms: took, dropped: dropped.current });
                 if (grabbed && !cancelled) {
                   setSettles((count) => count + 1);
                   settleHandler.current?.(grabbed, thumb, before);
@@ -279,6 +291,7 @@ export function useCamera({
     settles,
     motion: readout.motion,
     change: readout.change,
+    photo: photoStats,
     quality,
     capture,
     sampleThumbnail,

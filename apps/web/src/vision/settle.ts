@@ -116,9 +116,18 @@ export class SettleDetector {
     return this.referenceBefore;
   }
 
-  /** Whether anything moved after `at`: a dart in flight, a hand reaching in. */
-  movedSince(at: number): boolean {
-    return this.lastMotionAt > at;
+  /**
+   * Whether the board is not as it was in `settled`: something is moving right
+   * now, or the board changed since (a dart that was in the air has landed, a
+   * hand is in). A passing flicker of the video does neither: in paired mode a
+   * photograph crossing the network can dip the video's quality for a frame,
+   * and counting that as movement dropped good photographs again and again.
+   */
+  changedSince(settled: Uint8Array): boolean {
+    if (this.state === 'moving') return true;
+    const latest = this.previous;
+    if (!latest || latest.length !== settled.length) return false;
+    return this.blockDifference(latest, settled) >= this.options.changeThreshold;
   }
 
   /**

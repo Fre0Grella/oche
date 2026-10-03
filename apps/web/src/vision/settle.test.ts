@@ -149,7 +149,7 @@ describe('SettleDetector', () => {
     expect(next.filter((state) => state === 'settled')).toHaveLength(1);
   });
 
-  it('says whether anything moved after a settle', () => {
+  it('says whether the board changed since a settle, not whether the video flickered', () => {
     const detector = new SettleDetector();
     const empty = board();
     let at = 0;
@@ -157,14 +157,24 @@ describe('SettleDetector', () => {
     const landed = withDart(empty, 30, 30);
     let states: SettleState[];
     [states, at] = hold(detector, landed, at, 1200);
-    const settledAt = at;
     expect(states).toContain('settled');
-    expect(detector.movedSince(settledAt)).toBe(false);
+    expect(detector.changedSince(landed)).toBe(false);
 
-    // The next dart flies in while the phone is still taking the photograph.
+    // One frame of the video dips in quality while the photograph crosses the
+    // network, then it is the same board again: not a change.
     at += 33;
-    detector.push(withHand(landed), at);
-    expect(detector.movedSince(settledAt)).toBe(true);
+    detector.push(landed.map((value) => value + 6), at);
+    [, at] = hold(detector, landed, at, 400);
+    expect(detector.changedSince(landed)).toBe(false);
+
+    // The next dart was in the air when the photograph was taken, and has
+    // landed by the time anyone looks: the board changed.
+    [, at] = hold(detector, withDart(landed, 40, 40), at, 400);
+    expect(detector.changedSince(landed)).toBe(true);
+
+    // Something is moving right now.
+    detector.push(withHand(landed), at + 33);
+    expect(detector.changedSince(landed)).toBe(true);
   });
 
   it('settles again after a rewind, so a dropped photograph is retaken', () => {

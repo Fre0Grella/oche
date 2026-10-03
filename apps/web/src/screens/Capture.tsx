@@ -777,6 +777,7 @@ export function Capture() {
             <p className="capture-status">
               {camera.moving ? t.capture.moving : t.capture.waiting} · {camera.motion.toFixed(1)} /{' '}
               {camera.change.toFixed(1)} · {fill(t.capture.photoSize, { size: `${camera.width}×${camera.height}` })}
+              {camera.photo && ` · ${fill(t.capture.photoTime, { ms: camera.photo.ms, dropped: camera.photo.dropped })}`}
             </p>
           )}
 

@@ -406,6 +406,7 @@ export const en = {
     boardCleared: 'I pulled the darts out',
     photoSize: 'photos {size}',
     looking: 'Looking for the dart…',
+    photoTime: 'last photo {ms} ms, {dropped} dropped',
     foldAbout: 'How this works',
     foldMarking: 'How to mark',
     foldAutoscorer: 'About the autoscorer',
