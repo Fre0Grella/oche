@@ -25,6 +25,44 @@ def test_real_export_labels_agree_with_their_homographies_and_scores(export):
     assert samples, "nothing loaded"
 
 
+def test_a_rejected_proposal_is_kept_as_a_board_with_nothing_new(tmp_path):
+    import json
+    import zipfile
+
+    from treblewise_ml.capture_export import load_export
+
+    archive = tmp_path / "rejected.zip"
+    calibration = {
+        "imagePoints": [{"x": 0, "y": 0}],
+        "toImage": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+        "toBoard": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+        "error": 0,
+    }
+    phantom = {"img": {"x": 5, "y": 5}, "board": {"x": 5, "y": 5}}
+    dart = {"img": {"x": 0, "y": 103}, "board": {"x": 0, "y": 103}, "hit": {"sector": 20, "ring": "treble", "value": 60}}
+    frames = [
+        # a phantom on the empty board, rejected: nothing in it
+        {"id": "a", "ts": 1000, "source": "lab", "file": "f.jpg", "width": 9, "height": 9, "calibration": calibration, "darts": [], "model": "m", "rejected": [phantom]},
+        # the first real dart
+        {"id": "b", "ts": 2000, "source": "lab", "file": "f.jpg", "width": 9, "height": 9, "calibration": calibration, "darts": [dart]},
+        # a phantom beside it, rejected: still that one dart, still that visit
+        {"id": "c", "ts": 3000, "source": "lab", "file": "f.jpg", "width": 9, "height": 9, "calibration": calibration, "darts": [dart], "model": "m", "rejected": [phantom]},
+        # nobody marked it: skipped as before
+        {"id": "d", "ts": 4000, "source": "lab", "file": "f.jpg", "width": 9, "height": 9, "calibration": calibration, "darts": []},
+    ]
+    with zipfile.ZipFile(archive, "w") as z:
+        z.writestr("f.jpg", b"")
+        z.writestr("labels.json", json.dumps({"version": 1, "frames": frames}))
+
+    samples, report = load_export(archive)
+    by_id = {s.key.split(":", 1)[1]: s for s in samples}
+    assert sorted(by_id) == ["a", "b", "c"]
+    assert by_id["a"].tips_image.shape == (0, 2)
+    assert by_id["a"].meta["rejected"] == [(5, 5)] and by_id["a"].meta["model_involved"]
+    assert by_id["c"].group == by_id["b"].group
+    assert report.kept == 3
+
+
 def test_rectified_tips_land_where_the_board_says(synthetic_export):
     samples, _ = load_export(synthetic_export)
     dataset = TipDataset(samples, train=False)

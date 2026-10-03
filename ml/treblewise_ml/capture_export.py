@@ -69,6 +69,9 @@ def _visit_groups(frames: list[dict]) -> dict[str, str]:
 
     The keys keep the project's old name on purpose: `split_of` hashes them,
     and a new prefix would move held-out photographs into training.
+
+    A photograph saved with "No new dart" (`rejected`) has the same darts as
+    the one before it and is still the same visit.
     """
     groups: dict[str, str] = {}
     current: str | None = None
@@ -81,7 +84,8 @@ def _visit_groups(frames: list[dict]) -> dict[str, str]:
             previous is None
             or current is None
             or frame["ts"] - previous["ts"] > VISIT_GAP_MS
-            or len(frame["darts"]) <= len(previous["darts"])
+            or len(frame["darts"]) < len(previous["darts"])
+            or (len(frame["darts"]) == len(previous["darts"]) and not frame.get("rejected"))
             or frame["calibration"]["imagePoints"] != previous["calibration"]["imagePoints"]
         )
         if starts_visit:
@@ -107,16 +111,18 @@ def load_export(path: str | Path, tolerance_mm: float = 0.05) -> tuple[list[Samp
         if reported and len(reported.get("dartIds", [])) > len(darts):
             report.skip("dart left unplaced in a game report")
             continue
-        if not darts:
+        # An empty list is "nobody marked it", unless a person said the model's
+        # proposal was not a dart: then it is a board with nothing in it.
+        if not darts and not frame.get("rejected"):
             report.skip("no darts marked")
             continue
 
         calibration = frame["calibration"]
         to_board = to_matrix(calibration["toBoard"])
-        tips = np.array([[d["img"]["x"], d["img"]["y"]] for d in darts], dtype=np.float64)
-        boards = np.array([[d["board"]["x"], d["board"]["y"]] for d in darts], dtype=np.float64)
+        tips = np.array([[d["img"]["x"], d["img"]["y"]] for d in darts], dtype=np.float64).reshape(-1, 2)
+        boards = np.array([[d["board"]["x"], d["board"]["y"]] for d in darts], dtype=np.float64).reshape(-1, 2)
 
-        error = float(np.abs(apply_h(to_board, tips) - boards).max())
+        error = float(np.abs(apply_h(to_board, tips) - boards).max()) if len(darts) else 0.0
         if error > tolerance_mm:
             report.skip("homography disagrees with the labels", f"{frame['id']}: {error:.3f} mm")
             continue
@@ -151,6 +157,8 @@ def load_export(path: str | Path, tolerance_mm: float = 0.05) -> tuple[list[Samp
                     "model_involved": bool(frame.get("model")) or any(d.get("by") == "model" for d in darts),
                     # A person opened it again in the review screen and confirmed every mark.
                     "reviewed": bool(frame.get("reviewed")),
+                    # Where the model proposed a dart a person said was not there.
+                    "rejected": [(r["board"]["x"], r["board"]["y"]) for r in frame.get("rejected", [])],
                 },
             )
         )
