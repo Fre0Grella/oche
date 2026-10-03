@@ -186,22 +186,26 @@ a:hover {
   background: var(--action-hover);
 }
 
-/* The board button: a beige face inside a ring of alternating red and green
-   beds, the double ring. For the actions that start play, and nothing else. */
+/* The board button, for the actions that start play and nothing else. It
+   wears the lobby's selected entry (.lobby-item-on): a beige face, the label
+   in capitals, and the board's red and green as two stripes along its
+   leading edge. Red or green alone reads as error or success; together they
+   are the board. */
 .board-btn,
 .board-btn:hover:not(:disabled) {
-  border: 3px solid transparent;
-  background:
-    linear-gradient(var(--action), var(--action)) padding-box,
-    repeating-conic-gradient(var(--ring-a) 0 18deg, var(--ring-b) 18deg 36deg) border-box;
+  background: var(--action);
   color: var(--action-ink);
-  font-weight: 700;
+  border-color: transparent;
+  box-shadow: inset 5px 0 0 var(--ring-a), inset 10px 0 0 var(--ring-b);
+  padding-left: 26px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 650;
 }
 
 .board-btn:hover:not(:disabled) {
-  background:
-    linear-gradient(var(--action-hover), var(--action-hover)) padding-box,
-    repeating-conic-gradient(var(--ring-a) 0 18deg, var(--ring-b) 18deg 36deg) border-box;
+  background: var(--action-hover);
 }
 
 /* Only stretch inside a row of buttons: a lone primary in a column layout
