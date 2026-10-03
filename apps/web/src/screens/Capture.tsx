@@ -58,6 +58,7 @@ import { carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worth
 import { useMatchStore } from '../store/match.js';
 import { THUMB_SIZE, cameraSupported, type GrabbedFrame } from '../vision/camera.js';
 import { loadDetector, loadManifest, type Detector, type ModelManifest } from '../vision/detector.js';
+import { squareAround } from '../vision/crop.js';
 import { boardLooksEmpty } from '../vision/imageStats.js';
 import { useCamera } from '../vision/useCamera.js';
 
@@ -109,8 +110,6 @@ interface PendingFrame {
   failed: boolean;
   /** Held back from the model on purpose, so a person marks it: see BLIND_SHARE. */
   blind: boolean;
-  /** Held back because a full visit is still in the board: see awaitingEmptyRef. */
-  held: boolean;
   /** The model that proposed, for the record. */
   model?: string;
 }
@@ -194,12 +193,19 @@ export function Capture() {
   };
   /**
    * A full visit was saved and its darts are still in the board until someone
-   * pulls them. The photographs in between, a hand reaching in, would carry no
-   * marks and the model would propose the old darts as new ones, so nothing is
-   * proposed until the board looks as it did at calibration again (or a person
-   * saves a photograph, which means the next visit has begun).
+   * pulls them: the pull-out phase. The photographs taken meanwhile show a
+   * hand reaching in, or darts half out; opened, they asked for a dart to be
+   * tapped and the model proposed the old darts as new ones. So during this
+   * phase no photograph is opened at all, and the coach says to pull the darts
+   * out. It ends when the board looks as it did at calibration again, or when
+   * a person says the darts are out.
    */
   const awaitingEmptyRef = useRef(false);
+  const [pullingOut, setPullingOut] = useState(false);
+  const setAwaitingEmpty = (awaiting: boolean) => {
+    awaitingEmptyRef.current = awaiting;
+    setPullingOut(awaiting);
+  };
   /** What each settled photograph looked like to the empty-board check. */
   const emptyFrames = useRef(new WeakMap<GrabbedFrame, boolean>());
   const emptyReferenceRef = useRef<Uint8Array | null>(null);
@@ -265,7 +271,7 @@ export function Capture() {
     const after = inBoardAfter(frame.darts);
     inBoardRef.current = after;
     setInBoard(after);
-    awaitingEmptyRef.current = after.length === 0;
+    setAwaitingEmpty(after.length === 0);
     if (after.length === 0) startVisit();
 
     URL.revokeObjectURL(frame.url);
@@ -303,10 +309,22 @@ export function Capture() {
     const carried = carriedInto(inBoardRef.current);
     const model = detectorRef.current;
     const current = calibrationRef.current;
-    if (awaitingEmptyRef.current && emptyFrames.current.get(grabbed)) awaitingEmptyRef.current = false;
-    const held = model !== null && awaitingEmptyRef.current;
-    const blind = model !== null && !held && blindVisitRef.current;
-    const checking = model !== null && current !== null && !blind && !held;
+    const empty = emptyFrames.current.get(grabbed) === true;
+    // Pulling the darts out: nothing to mark until the board is empty, and an
+    // empty board with no darts carried is nothing to mark either. Either way
+    // the photograph on screen, if nobody has started on it, goes too.
+    if (awaitingEmptyRef.current || (empty && carried.length === 0)) {
+      if (empty) setAwaitingEmpty(false);
+      const previous = pendingRef.current;
+      if (previous && onNewPhoto(previous) === 'replace') {
+        URL.revokeObjectURL(previous.url);
+        pendingRef.current = null;
+        setPending(null);
+      }
+      return;
+    }
+    const blind = model !== null && blindVisitRef.current;
+    const checking = model !== null && current !== null && !blind;
     const previous = pendingRef.current;
     if (previous) URL.revokeObjectURL(previous.url);
     const opened: PendingFrame = {
@@ -320,7 +338,6 @@ export function Capture() {
       missed: false,
       failed: false,
       blind,
-      held,
       ...(model ? { model: model.manifest.name } : {}),
     };
     // The ref moves now, not on the next render: a fast model can answer
@@ -429,6 +446,13 @@ export function Capture() {
     camera.width > 0 &&
     (calibration.width !== camera.width || calibration.height !== camera.height);
 
+  // Marking darts needs the board, not the wall around it: once calibrated,
+  // only the square around the board is shown. Calibrating needs the lot.
+  const crop =
+    mode === 'try' && region && !staleCalibration && calibration?.width === frameSize.width
+      ? squareAround(region, frameSize)
+      : null;
+
   // ---- calibration -------------------------------------------------------
 
   const draftCalibration =
@@ -530,7 +554,7 @@ export function Capture() {
       await deleteFrame(lastSaved.id);
       inBoardRef.current = lastSaved.inBoardBefore;
       setInBoard(lastSaved.inBoardBefore);
-      awaitingEmptyRef.current = false;
+      setAwaitingEmpty(false);
       setMarked((list) => list.slice(0, list.length - lastSaved.added));
       setLastSaved(null);
       void refreshStats();
@@ -544,7 +568,7 @@ export function Capture() {
   const boardCleared = () => {
     inBoardRef.current = [];
     setInBoard([]);
-    awaitingEmptyRef.current = false;
+    setAwaitingEmpty(false);
     startVisit();
     setPending((frame) =>
       frame
@@ -600,7 +624,7 @@ export function Capture() {
     setWaiting(null);
     inBoardRef.current = [];
     setInBoard([]);
-    awaitingEmptyRef.current = false;
+    setAwaitingEmpty(false);
     startVisit();
   }, [mode, discardPending]);
 
@@ -657,6 +681,7 @@ export function Capture() {
   const ready = (cameraOn || paired) && calibration !== null && !staleCalibration;
 
   function coachMessage(): string {
+    if (!pending && pullingOut) return t.capture.pullOut;
     if (!pending) return inBoard.length > 0 ? fill(t.capture.throwNext, { n: inBoard.length }) : t.capture.throwOne;
     if (pending.checking) return t.capture.looking;
     if (pending.proposed > 0 && !pending.edited) {
@@ -673,85 +698,241 @@ export function Capture() {
   }
 
   return (
-    <div className="screen screen-capture">
-      <header className="screen-head">
-        <h1>{t.capture.title}</h1>
-        <p>{mode === 'try' ? t.capture.trySubtitle : t.capture.subtitle}</p>
-      </header>
+    <div className={`screen screen-capture${mode === 'try' ? ' screen-capture-try' : ''}`}>
+      {/* One tree in every mode, so the video element is never remounted (it
+          would lose its stream). The layout changes in CSS: in try-it on a wide
+          screen the side column holds everything to read and press, and the
+          board sits beside it; elsewhere it all stacks, board under the coach. */}
+      <div className={`capture-work${mode === 'try' ? ' capture-work-split' : ''}`}>
+        <div className="capture-side">
+          <header className="screen-head">
+            <h1>{t.capture.title}</h1>
+            <p>{mode === 'try' ? t.capture.trySubtitle : t.capture.subtitle}</p>
+          </header>
 
-      {!cameraSupported() && <p className="warning">{t.capture.noCamera}</p>}
-      {camera.error && <p className="warning">{camera.error}</p>}
-      {staleCalibration && mode !== 'calibrate' && (
-        <p className="warning">
-          {fill(t.capture.calibrateStale, {
-            old: `${calibration!.width}×${calibration!.height}`,
-            now: `${camera.width}×${camera.height}`,
-          })}
-        </p>
-      )}
+          {!cameraSupported() && <p className="warning">{t.capture.noCamera}</p>}
+          {camera.error && <p className="warning">{camera.error}</p>}
+          {staleCalibration && mode !== 'calibrate' && (
+            <p className="warning">
+              {fill(t.capture.calibrateStale, {
+                old: `${calibration!.width}×${calibration!.height}`,
+                now: `${camera.width}×${camera.height}`,
+              })}
+            </p>
+          )}
 
-      {(cameraOn || paired) && mode !== 'try' && (
-        <SetupCoach
-          calibrated={mode === 'calibrate' ? draftCalibration !== null : calibration !== null}
-          view={view}
-          quality={camera.quality}
-          showNumbers
-        />
-      )}
+          {(cameraOn || paired) && mode !== 'try' && (
+            <SetupCoach
+              calibrated={mode === 'calibrate' ? draftCalibration !== null : calibration !== null}
+              view={view}
+              quality={camera.quality}
+              showNumbers
+            />
+          )}
 
-      {mode === 'try' && (
-        <div className={`coach ${pending ? 'coach-warn' : 'coach-ready'}`} role="status">
-          <span className="coach-dot" aria-hidden="true" />
-          <span className="coach-message">{coachMessage()}</span>
+          {mode === 'try' && (
+            <div className={`coach ${pending || pullingOut ? 'coach-warn' : 'coach-ready'}`} role="status">
+              <span className="coach-dot" aria-hidden="true" />
+              <span className="coach-message">{coachMessage()}</span>
+            </div>
+          )}
+
+          {mode === 'try' && (cameraOn || paired) && (
+            <p className="capture-status">
+              {camera.moving ? t.capture.moving : t.capture.waiting} · {camera.motion.toFixed(1)} /{' '}
+              {camera.change.toFixed(1)} · {fill(t.capture.photoSize, { size: `${camera.width}×${camera.height}` })}
+            </p>
+          )}
+
+          {mode === 'try' && (
+            <div className="capture-actions">
+              {marked.length > 0 && (
+                <div className="throw-strip">
+                  <span className="throw-who">{fill(t.capture.markedCount, { n: marked.length })}</span>
+                  <span className="throw-darts">
+                    {marked.slice(-4).map((entry) => (
+                      <span key={entry.id} className="dart-chip">
+                        {formatHit(entry.hit)}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              )}
+
+              <p className="hint">
+                <b>{t.capture.markEveryDart}</b> {t.capture.tryHelp}
+              </p>
+              {savedNote && <p className="hint">{savedNote}</p>}
+              {waiting && <p className="warning">{t.capture.photoWaiting}</p>}
+              {leaving && (
+                <div className="panel" role="alertdialog" aria-label={t.capture.unsavedTitle}>
+                  <p>{t.capture.unsavedTitle}</p>
+                  <div className="controls">
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={async () => {
+                        const where = leaving;
+                        await savePending();
+                        leave(where);
+                      }}
+                    >
+                      {t.capture.unsavedSave}
+                    </button>
+                    <button
+                      type="button"
+                      className="chip"
+                      onClick={() => {
+                        const where = leaving;
+                        discardPending();
+                        leave(where);
+                      }}
+                    >
+                      {t.capture.unsavedDiscard}
+                    </button>
+                    <button type="button" className="chip" onClick={() => setLeaving(null)}>
+                      {t.capture.unsavedStay}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {modelInfo && (
+                <section className="panel">
+                  <div className="controls">
+                    <button
+                      type="button"
+                      className={`chip${proposing ? ' chip-on' : ''}`}
+                      onClick={() => setProposing((on) => !on)}
+                    >
+                      {proposing ? (detector ? t.capture.proposingOn : t.capture.proposingLoading) : t.capture.proposingOff}
+                    </button>
+                  </div>
+                  <p className="hint">
+                    {proposing ? t.capture.proposingHelp : t.capture.proposingOffHelp}
+                    {pending?.blind && ` ${t.capture.blindFrame}`}
+                  </p>
+                  {verdicts.right + verdicts.corrected > 0 && (
+                    <p className="hint">
+                      {fill(t.capture.verdicts, { right: verdicts.right, n: verdicts.right + verdicts.corrected })}
+                    </p>
+                  )}
+                  <p className="hint">
+                    {fill(t.capture.modelName, { name: modelInfo.name })}
+                    {modelInfo.deepdarts && ` ${t.capture.deepdartsCredit}`}
+                    {modelInfo.dartscribe && ` ${t.capture.dartscribeCredit}`}
+                  </p>
+                </section>
+              )}
+
+              <div className="controls">
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => void savePending()}
+                  disabled={!pending || !worthSaving(pending)}
+                >
+                  {pending && pending.proposed > 0 && !pending.edited
+                    ? t.capture.saveProposal
+                    : pending && pending.darts.length > 0
+                      ? fill(t.capture.saveFrame, { n: pending.darts.length })
+                      : t.capture.saveFrameEmpty}
+                </button>
+                <button type="button" className="chip" onClick={discardPending} disabled={!pending}>
+                  {t.capture.skipPhoto}
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={boardCleared}
+                  // Also the way out when the empty-board check cannot see the
+                  // darts are gone (a shadow that was not there at calibration).
+                  disabled={inBoard.length === 0 && (!pending || pending.carried === 0) && !pullingOut}
+                >
+                  {t.capture.boardCleared}
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={async () => {
+                    const grabbed = await camera.capture();
+                    if (grabbed) onSettle(grabbed);
+                  }}
+                  disabled={!camera.ready}
+                >
+                  {t.capture.captureNow}
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => void undoLast()}
+                  disabled={(pending?.darts.length ?? 0) === 0 && !lastSaved}
+                >
+                  {t.capture.undo}
+                </button>
+                <button type="button" className="chip" onClick={() => leave('done')}>
+                  {t.capture.doneTrying}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="stage" style={{ aspectRatio: `${frameSize.width} / ${frameSize.height}` }}>
-        <video ref={camera.videoRef} className="stage-video" playsInline muted />
-        {mode === 'calibrate' && frozen && <img className="stage-frozen" src={frozen.url} alt="" />}
-        {mode === 'try' && pending && <img className="stage-frozen" src={pending.url} alt="" />}
-
-        <BoardOverlay
-          width={frameSize.width}
-          height={frameSize.height}
-          toImage={overlayToImage}
-          handles={mode === 'calibrate' ? handles : []}
-          onHandleMove={(index, point) =>
-            setDraft((points) => points.map((p, i) => (i === index ? point : p)))
-          }
-          darts={
-            mode === 'try' && pending
-              ? pending.darts.map((dart, index) => ({
-                  img: dart.img,
-                  label: dart.by === 'model' ? `${formatHit(dart.hit)}?` : formatHit(dart.hit),
-                  kind: index < pending.carried ? ('carried' as const) : dart.by === 'model' ? ('proposed' as const) : ('new' as const),
-                }))
-              : []
-          }
-          onDartMove={(index, point) => {
-            const current = calibrationRef.current;
-            if (!current) return;
-            setPending((frame) =>
-              frame
+        <div className="stage" style={{ aspectRatio: crop ? '1 / 1' : `${frameSize.width} / ${frameSize.height}` }}>
+          <div
+            className="stage-frame"
+            style={
+              crop
                 ? {
-                    ...frame,
-                    darts: frame.darts.map((dart, i) => (i === index ? readDart(current, point) : dart)),
-                    edited: true,
+                    inset: 'auto',
+                    left: `${(-crop.x / crop.width) * 100}%`,
+                    top: `${(-crop.y / crop.height) * 100}%`,
+                    width: `${(frameSize.width / crop.width) * 100}%`,
+                    height: `${(frameSize.height / crop.height) * 100}%`,
                   }
-                : frame,
-            );
-          }}
-          onTap={(point) => {
-            if (mode === 'try' && pending) markDart(point);
-          }}
-        />
+                : undefined
+            }
+          >
+            <video ref={camera.videoRef} className="stage-video" playsInline muted />
+            {mode === 'calibrate' && frozen && <img className="stage-frozen" src={frozen.url} alt="" />}
+            {mode === 'try' && pending && <img className="stage-frozen" src={pending.url} alt="" />}
 
-        {mode === 'try' && !pending && (cameraOn || paired) && (
-          <div className="stage-badge">
-            {camera.moving ? t.capture.moving : t.capture.waiting} · {camera.motion.toFixed(1)} /{' '}
-            {camera.change.toFixed(1)} · {fill(t.capture.photoSize, { size: `${camera.width}×${camera.height}` })}
+            <BoardOverlay
+              width={frameSize.width}
+              height={frameSize.height}
+              toImage={overlayToImage}
+              handles={mode === 'calibrate' ? handles : []}
+              onHandleMove={(index, point) =>
+                setDraft((points) => points.map((p, i) => (i === index ? point : p)))
+              }
+              darts={
+                mode === 'try' && pending
+                  ? pending.darts.map((dart, index) => ({
+                      img: dart.img,
+                      label: dart.by === 'model' ? `${formatHit(dart.hit)}?` : formatHit(dart.hit),
+                      kind: index < pending.carried ? ('carried' as const) : dart.by === 'model' ? ('proposed' as const) : ('new' as const),
+                    }))
+                  : []
+              }
+              onDartMove={(index, point) => {
+                const current = calibrationRef.current;
+                if (!current) return;
+                setPending((frame) =>
+                  frame
+                    ? {
+                        ...frame,
+                        darts: frame.darts.map((dart, i) => (i === index ? readDart(current, point) : dart)),
+                        edited: true,
+                      }
+                    : frame,
+                );
+              }}
+              onTap={(point) => {
+                if (mode === 'try' && pending) markDart(point);
+              }}
+            />
           </div>
-        )}
+        </div>
       </div>
 
       {mode === 'calibrate' && (
@@ -783,140 +964,6 @@ export function Capture() {
             </button>
           </div>
         </section>
-      )}
-
-      {mode === 'try' && (
-        <>
-          {marked.length > 0 && (
-            <div className="throw-strip">
-              <span className="throw-who">{fill(t.capture.markedCount, { n: marked.length })}</span>
-              <span className="throw-darts">
-                {marked.slice(-4).map((entry) => (
-                  <span key={entry.id} className="dart-chip">
-                    {formatHit(entry.hit)}
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-
-          <p className="hint">
-            <b>{t.capture.markEveryDart}</b> {t.capture.tryHelp}
-          </p>
-          {savedNote && <p className="hint">{savedNote}</p>}
-          {waiting && <p className="warning">{t.capture.photoWaiting}</p>}
-          {leaving && (
-            <div className="panel" role="alertdialog" aria-label={t.capture.unsavedTitle}>
-              <p>{t.capture.unsavedTitle}</p>
-              <div className="controls">
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={async () => {
-                    const where = leaving;
-                    await savePending();
-                    leave(where);
-                  }}
-                >
-                  {t.capture.unsavedSave}
-                </button>
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={() => {
-                    const where = leaving;
-                    discardPending();
-                    leave(where);
-                  }}
-                >
-                  {t.capture.unsavedDiscard}
-                </button>
-                <button type="button" className="chip" onClick={() => setLeaving(null)}>
-                  {t.capture.unsavedStay}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {modelInfo && (
-            <section className="panel">
-              <div className="controls">
-                <button
-                  type="button"
-                  className={`chip${proposing ? ' chip-on' : ''}`}
-                  onClick={() => setProposing((on) => !on)}
-                >
-                  {proposing ? (detector ? t.capture.proposingOn : t.capture.proposingLoading) : t.capture.proposingOff}
-                </button>
-              </div>
-              <p className="hint">
-                {proposing ? t.capture.proposingHelp : t.capture.proposingOffHelp}
-                {pending?.blind && ` ${t.capture.blindFrame}`}
-                {pending?.held && ` ${t.capture.heldFrame}`}
-              </p>
-              {verdicts.right + verdicts.corrected > 0 && (
-                <p className="hint">
-                  {fill(t.capture.verdicts, { right: verdicts.right, n: verdicts.right + verdicts.corrected })}
-                </p>
-              )}
-              <p className="hint">
-                {fill(t.capture.modelName, { name: modelInfo.name })}
-                {modelInfo.deepdarts && ` ${t.capture.deepdartsCredit}`}
-                {modelInfo.dartscribe && ` ${t.capture.dartscribeCredit}`}
-              </p>
-            </section>
-          )}
-
-          <div className="controls">
-            <button
-              type="button"
-              className="primary"
-              onClick={() => void savePending()}
-              disabled={!pending || !worthSaving(pending)}
-            >
-              {pending && pending.proposed > 0 && !pending.edited
-                ? t.capture.saveProposal
-                : pending && pending.darts.length > 0
-                  ? fill(t.capture.saveFrame, { n: pending.darts.length })
-                  : t.capture.saveFrameEmpty}
-            </button>
-            <button type="button" className="chip" onClick={discardPending} disabled={!pending}>
-              {t.capture.skipPhoto}
-            </button>
-            <button
-              type="button"
-              className="chip"
-              onClick={boardCleared}
-              // Also the way out when the empty-board check cannot see the
-              // darts are gone (a shadow that was not there at calibration).
-              disabled={inBoard.length === 0 && (!pending || pending.carried === 0) && !pending?.held}
-            >
-              {t.capture.boardCleared}
-            </button>
-            <button
-              type="button"
-              className="chip"
-              onClick={async () => {
-                const grabbed = await camera.capture();
-                if (grabbed) onSettle(grabbed);
-              }}
-              disabled={!camera.ready}
-            >
-              {t.capture.captureNow}
-            </button>
-            <button
-              type="button"
-              className="chip"
-              onClick={() => void undoLast()}
-              disabled={(pending?.darts.length ?? 0) === 0 && !lastSaved}
-            >
-              {t.capture.undo}
-            </button>
-            <button type="button" className="chip" onClick={() => leave('done')}>
-              {t.capture.doneTrying}
-            </button>
-          </div>
-        </>
       )}
 
       {mode === 'setup' && (

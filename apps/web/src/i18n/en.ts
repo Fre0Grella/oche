@@ -413,7 +413,8 @@ export const en = {
       'The autoscorer marks the new dart in blue and calls it. Nothing is saved until you press Save: check the mark is on the tip, not the flight. This model has not been tested on your board yet.',
     proposingOffHelp: 'You mark every dart yourself.',
     blindFrame: 'This visit is yours to mark: one in five is, so the autoscorer can be tested on visits it never saw.',
-    heldFrame: 'Three darts are in: the autoscorer waits until they are out of the board, or until you say you pulled them out.',
+    pullOut:
+      'Three darts are in. Pull them all out before you throw again: photos are ignored until the board is empty. Still showing with the board empty? Press "I pulled the darts out".',
     verdicts: 'Right {right} times out of {n} this session.',
     modelName: 'Model: {name}.',
     deepdartsCredit:

@@ -604,6 +604,78 @@ input {
   display: block;
 }
 
+/* The whole photograph, or (when the stage is cropped to the board) a larger
+   box placed so that only the board's square shows through the stage. Video,
+   photograph and overlay all fill it, so a tap still lands in image pixels. */
+.stage-frame {
+  position: absolute;
+  inset: 0;
+}
+
+/* The capture lab: one tree, two layouts. On a phone everything stacks with
+   the board right under the coach and the buttons under the board; the side
+   column dissolves so its children can be ordered around the stage. */
+.capture-work {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.capture-side {
+  display: contents;
+}
+
+.capture-work > .stage {
+  order: 1;
+}
+
+.capture-actions {
+  order: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.capture-status {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* On a laptop the board goes on the right, as large as the screen is tall, and
+   everything to read and press stays in view on the left: no scrolling between
+   looking at the dart and pressing Save. */
+@media (min-width: 900px) {
+  .screen-capture-try {
+    max-width: 1440px;
+  }
+
+  .capture-work-split {
+    display: grid;
+    grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .capture-work-split .capture-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    position: sticky;
+    top: 16px;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+  }
+
+  .capture-work-split > .stage {
+    position: sticky;
+    top: 16px;
+    width: min(100%, calc(100dvh - 32px));
+    justify-self: center;
+  }
+}
+
 .board-overlay {
   position: absolute;
   inset: 0;

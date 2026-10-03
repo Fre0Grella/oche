@@ -207,17 +207,32 @@ describe('the capture lab saves only what a person confirmed', () => {
     }
     expect(hooks.stored).toHaveLength(3);
 
-    // A hand reaching for the darts: all three still in, none carried.
+    // The pull-out phase: said up front, before any photograph.
+    expect(screen.getByText(/pull them all out/i)).toBeDefined();
+
+    // A hand reaching for the darts: all three still in. Not opened at all, so
+    // nobody is asked to tap a dart on it.
     await settle();
     expect(screen.queryByRole('button', { name: /right — save it/i })).toBeNull();
-    expect(screen.getByText(/waits until they are out/i)).toBeDefined();
+    expect(screen.queryByText(/tap the dart/i)).toBeNull();
+    expect(screen.getByText(/pull them all out/i)).toBeDefined();
 
-    // The darts are out; the next one thrown is proposed again.
+    // The darts are out: the phase ends without a photograph to mark, and the
+    // next one thrown is proposed again.
     hooks.found = [];
     await settle(EMPTY);
+    expect(screen.queryByText(/pull them all out/i)).toBeNull();
+    expect(screen.getByText(/i am watching the board/i)).toBeDefined();
     hooks.found = [{ x: 20, y: -40 }];
     await settle();
     expect(screen.getByRole('button', { name: /right — save it/i })).toBeDefined();
+  });
+
+  it('does not ask for a dart on a photograph of the empty board', async () => {
+    hooks.found = [];
+    await settle(EMPTY);
+    expect(screen.queryByText(/tap the dart/i)).toBeNull();
+    expect(screen.getByText(/i am watching the board/i)).toBeDefined();
   });
 
   it('lets a person say the darts are out when the board does not look empty', async () => {
