@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assessImage, driftFraction } from './imageStats.js';
+import { assessImage, boardLooksEmpty, driftFraction } from './imageStats.js';
 
 const W = 64;
 const H = 64;
@@ -66,5 +66,31 @@ describe('driftFraction', () => {
 
   it('ignores a reference of the wrong size instead of guessing', () => {
     expect(driftFraction(flat(100), new Uint8Array(16), W, H)).toBe(0);
+  });
+});
+
+describe('boardLooksEmpty', () => {
+  /** The board with a dart in it: one small, dense patch. */
+  const withDart = (base: Uint8Array) =>
+    base.map((value, index) => {
+      const x = index % W;
+      const y = Math.floor(index / W);
+      return x >= 30 && x < 36 && y >= 20 && y < 26 ? value - 60 : value;
+    });
+
+  it('sees the calibrated board again once the darts are out', () => {
+    expect(boardLooksEmpty(wires(), wires(), W, H)).toBe(true);
+  });
+
+  it('is not fooled by the room getting darker since calibration', () => {
+    expect(boardLooksEmpty(wires(100), wires(120), W, H)).toBe(true);
+  });
+
+  it('sees one dart still in the board', () => {
+    expect(boardLooksEmpty(withDart(wires()), wires(), W, H)).toBe(false);
+  });
+
+  it('cannot tell without a reference of the same size', () => {
+    expect(boardLooksEmpty(wires(), new Uint8Array(16), W, H)).toBe(false);
   });
 });

@@ -31,6 +31,8 @@ export const IMAGE_THRESHOLDS = {
   sharpness: 25,
   drift: 0.35,
   blockDifference: 14,
+  /** The capture trigger's own threshold for "something landed" (settle.ts). */
+  emptyBlockDifference: 8,
 };
 
 function laplacianVariance(pixels: Uint8Array, width: number, height: number): number {
@@ -89,6 +91,47 @@ export function driftFraction(
   }
 
   return blocks === 0 ? 0 : moved / blocks;
+}
+
+/**
+ * Whether the board looks as it did when it was calibrated, with nothing in
+ * it: no block of the thumbnail differs from the reference by as much as the
+ * capture trigger counts as a dart landing.
+ *
+ * The overall brightness is taken out first. The reference can be hours old,
+ * and a room that got a little darker since moves every block the same way,
+ * while a dart moves one or two. The blocks overlap by half, as the capture
+ * trigger's do, so a dart on a block boundary still fills most of one.
+ */
+export function boardLooksEmpty(
+  current: Uint8Array,
+  reference: Uint8Array,
+  width: number,
+  height: number,
+  blockSize = 8,
+): boolean {
+  if (current.length !== reference.length || current.length !== width * height) return false;
+
+  let shift = 0;
+  for (let i = 0; i < current.length; i += 1) shift += current[i]! - reference[i]!;
+  shift /= current.length;
+
+  const step = Math.max(1, Math.floor(blockSize / 2));
+  for (let by = 0; by + 1 < height; by += step) {
+    for (let bx = 0; bx + 1 < width; bx += step) {
+      let total = 0;
+      let count = 0;
+      for (let y = by; y < Math.min(by + blockSize, height); y += 1) {
+        for (let x = bx; x < Math.min(bx + blockSize, width); x += 1) {
+          const i = y * width + x;
+          total += Math.abs(current[i]! - reference[i]! - shift);
+          count += 1;
+        }
+      }
+      if (count > 0 && total / count >= IMAGE_THRESHOLDS.emptyBlockDifference) return false;
+    }
+  }
+  return true;
 }
 
 export function assessImage(

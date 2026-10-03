@@ -45,8 +45,11 @@ export interface UseCameraOptions {
    * dragging markers, and every bit of the phone should go to their finger.
    */
   paused?: boolean;
-  /** Called once per throw, with the frame taken when the board went still. */
-  onSettle?: (frame: GrabbedFrame) => void;
+  /**
+   * Called once per throw, with the frame taken when the board went still and
+   * the board-region thumbnail that showed it still.
+   */
+  onSettle?: (frame: GrabbedFrame, thumbnail: Uint8Array) => void;
   /** Set false to watch for motion without photographing anything. */
   captureOnSettle?: boolean;
   /**
@@ -215,7 +218,7 @@ export function useCamera({
               .then((grabbed) => {
                 if (grabbed && !cancelled) {
                   setSettles((count) => count + 1);
-                  settleHandler.current?.(grabbed);
+                  settleHandler.current?.(grabbed, thumb);
                 }
               })
               .finally(() => {

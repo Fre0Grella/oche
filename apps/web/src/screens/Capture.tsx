@@ -56,8 +56,9 @@ import {
 import { storageEstimate } from '../storage/db.js';
 import { carriedInto, inBoardAfter, newDarts, onNewPhoto, proposalsBeside, worthSaving } from '../storage/visit.js';
 import { useMatchStore } from '../store/match.js';
-import { cameraSupported, type GrabbedFrame } from '../vision/camera.js';
+import { THUMB_SIZE, cameraSupported, type GrabbedFrame } from '../vision/camera.js';
 import { loadDetector, loadManifest, type Detector, type ModelManifest } from '../vision/detector.js';
+import { boardLooksEmpty } from '../vision/imageStats.js';
 import { useCamera } from '../vision/useCamera.js';
 
 type Mode = 'setup' | 'calibrate' | 'try';
@@ -104,6 +105,8 @@ interface PendingFrame {
   checking: boolean;
   /** Held back from the model on purpose, so a person marks it: see BLIND_SHARE. */
   blind: boolean;
+  /** Held back because a full visit is still in the board: see awaitingEmptyRef. */
+  held: boolean;
   /** The model that proposed, for the record. */
   model?: string;
 }
@@ -173,8 +176,29 @@ export function Capture() {
   waitingRef.current = waiting;
   const detectorRef = useRef(detector);
   detectorRef.current = proposing ? detector : null;
-  /** Whether the model is kept out of the current visit; rolled when a visit starts. */
-  const blindVisitRef = useRef(false);
+  /**
+   * Whether the model is kept out of the current visit. Rolled when a visit
+   * starts, and only then: rolled on every photograph of an empty board, a
+   * blind one (nothing proposed, so nothing to keep it on screen) was replaced
+   * by the next settle and rolled again, until a proposal stuck. Visits were
+   * almost never blind, and the test set never grew.
+   */
+  const [firstVisitBlind] = useState(() => Math.random() < BLIND_SHARE);
+  const blindVisitRef = useRef(firstVisitBlind);
+  const startVisit = () => {
+    blindVisitRef.current = Math.random() < BLIND_SHARE;
+  };
+  /**
+   * A full visit was saved and its darts are still in the board until someone
+   * pulls them. The photographs in between, a hand reaching in, would carry no
+   * marks and the model would propose the old darts as new ones, so nothing is
+   * proposed until the board looks as it did at calibration again (or a person
+   * saves a photograph, which means the next visit has begun).
+   */
+  const awaitingEmptyRef = useRef(false);
+  /** What each settled photograph looked like to the empty-board check. */
+  const emptyFrames = useRef(new WeakMap<GrabbedFrame, boolean>());
+  const emptyReferenceRef = useRef<Uint8Array | null>(null);
   const callerRef = useRef(callerEnabled);
   callerRef.current = callerEnabled;
 
@@ -237,6 +261,8 @@ export function Capture() {
     const after = inBoardAfter(frame.darts);
     inBoardRef.current = after;
     setInBoard(after);
+    awaitingEmptyRef.current = after.length === 0;
+    if (after.length === 0) startVisit();
 
     URL.revokeObjectURL(frame.url);
     await putFrame(stored);
@@ -273,10 +299,10 @@ export function Capture() {
     const carried = carriedInto(inBoardRef.current);
     const model = detectorRef.current;
     const current = calibrationRef.current;
-    // An empty board is the start of a visit: roll once for all of it.
-    if (inBoardRef.current.length === 0) blindVisitRef.current = Math.random() < BLIND_SHARE;
-    const blind = model !== null && blindVisitRef.current;
-    const checking = model !== null && current !== null && !blind;
+    if (awaitingEmptyRef.current && emptyFrames.current.get(grabbed)) awaitingEmptyRef.current = false;
+    const held = model !== null && awaitingEmptyRef.current;
+    const blind = model !== null && !held && blindVisitRef.current;
+    const checking = model !== null && current !== null && !blind && !held;
     const previous = pendingRef.current;
     if (previous) URL.revokeObjectURL(previous.url);
     const opened: PendingFrame = {
@@ -288,6 +314,7 @@ export function Capture() {
       proposed: 0,
       checking,
       blind,
+      held,
       ...(model ? { model: model.manifest.name } : {}),
     };
     // The ref moves now, not on the next render: a fast model can answer
@@ -326,11 +353,15 @@ export function Capture() {
    * Nothing is ever saved here (issue #3).
    */
   const onSettle = useCallback(
-    (grabbed: GrabbedFrame) => {
+    (grabbed: GrabbedFrame, thumbnail?: Uint8Array) => {
       if (modeRef.current !== 'try') return;
       const current = calibrationRef.current;
       if (!current) return;
       if (current.width !== grabbed.width || current.height !== grabbed.height) return;
+      const reference = emptyReferenceRef.current;
+      if (thumbnail && reference) {
+        emptyFrames.current.set(grabbed, boardLooksEmpty(thumbnail, reference, THUMB_SIZE, THUMB_SIZE));
+      }
 
       if (onNewPhoto(pendingRef.current) === 'wait') {
         waitingRef.current = grabbed;
@@ -354,6 +385,7 @@ export function Capture() {
     () => (calibration?.reference ? Uint8Array.from(calibration.reference) : null),
     [calibration],
   );
+  emptyReferenceRef.current = reference;
 
   const camera = useCamera({
     active: cameraOn || paired,
@@ -480,16 +512,22 @@ export function Capture() {
       await deleteFrame(lastSaved.id);
       inBoardRef.current = lastSaved.inBoardBefore;
       setInBoard(lastSaved.inBoardBefore);
+      awaitingEmptyRef.current = false;
       setMarked((list) => list.slice(0, list.length - lastSaved.added));
       setLastSaved(null);
       void refreshStats();
     }
   };
 
-  /** The darts came out before the third: forget them, here and on screen. */
+  /**
+   * The darts came out, before the third or after it: forget them, here and on
+   * screen, and let the model propose again.
+   */
   const boardCleared = () => {
     inBoardRef.current = [];
     setInBoard([]);
+    awaitingEmptyRef.current = false;
+    startVisit();
     setPending((frame) =>
       frame
         ? {
@@ -544,6 +582,8 @@ export function Capture() {
     setWaiting(null);
     inBoardRef.current = [];
     setInBoard([]);
+    awaitingEmptyRef.current = false;
+    startVisit();
   }, [mode, discardPending]);
 
   /** Done or Back: straight away, unless there are marks nobody saved. */
@@ -792,6 +832,7 @@ export function Capture() {
               <p className="hint">
                 {proposing ? t.capture.proposingHelp : t.capture.proposingOffHelp}
                 {pending?.blind && ` ${t.capture.blindFrame}`}
+                {pending?.held && ` ${t.capture.heldFrame}`}
               </p>
               {verdicts.right + verdicts.corrected > 0 && (
                 <p className="hint">
@@ -826,7 +867,9 @@ export function Capture() {
               type="button"
               className="chip"
               onClick={boardCleared}
-              disabled={inBoard.length === 0 && (!pending || pending.carried === 0)}
+              // Also the way out when the empty-board check cannot see the
+              // darts are gone (a shadow that was not there at calibration).
+              disabled={inBoard.length === 0 && (!pending || pending.carried === 0) && !pending?.held}
             >
               {t.capture.boardCleared}
             </button>

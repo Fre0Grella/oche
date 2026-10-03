@@ -12,13 +12,15 @@ const HEIGHT = 480;
 
 /** What the mocks expose to the test: the settle callback, and what was stored. */
 const hooks = vi.hoisted(() => ({
-  settle: undefined as ((frame: GrabbedFrame) => void) | undefined,
+  settle: undefined as ((frame: GrabbedFrame, thumbnail?: Uint8Array) => void) | undefined,
   stored: [] as CapturedFrame[],
   detectorLoads: 0,
+  /** What the model finds on the next photograph, in board millimetres. */
+  found: [{ x: 0, y: 103 }] as { x: number; y: number }[],
 }));
 
 vi.mock('../vision/useCamera.js', () => ({
-  useCamera: (options: { onSettle?: (frame: GrabbedFrame) => void }) => {
+  useCamera: (options: { onSettle?: (frame: GrabbedFrame, thumbnail?: Uint8Array) => void }) => {
     hooks.settle = options.onSettle;
     return {
       videoRef: { current: null },
@@ -37,18 +39,22 @@ vi.mock('../vision/useCamera.js', () => ({
   },
 }));
 
-vi.mock('../vision/camera.js', () => ({ cameraSupported: () => true }));
+vi.mock('../vision/camera.js', () => ({ cameraSupported: () => true, THUMB_SIZE: 64 }));
 
-// A model that always proposes one dart, in the treble 20.
+// A model that finds whatever `hooks.found` says: one dart in the treble 20 unless a test changes it.
 vi.mock('../vision/detector.js', () => ({
   loadManifest: async () => ({ name: 'test-model', file: 'x.onnx', sha256: 'x' }),
   loadDetector: async () => {
     hooks.detectorLoads += 1;
     return {
     manifest: { name: 'test-model', file: 'x.onnx', sha256: 'x' },
-    detect: async () => [
-      { img: { x: 320, y: 200 }, board: { x: 0, y: 103 }, hit: { sector: 20, ring: 'treble', value: 60 }, confidence: 0.9 },
-    ],
+    detect: async () =>
+      hooks.found.map((board) => ({
+        img: { x: 320, y: 200 },
+        board,
+        hit: { sector: 20, ring: 'treble', value: 60 },
+        confidence: 0.9,
+      })),
     };
   },
 }));
@@ -74,9 +80,14 @@ async function press(name: RegExp) {
   });
 }
 
-async function settle() {
+/** The board-region thumbnail of the empty board, as stored at calibration. */
+const EMPTY = new Uint8Array(64 * 64).fill(120);
+/** The same board with darts in it. */
+const DARTS = EMPTY.map((value, index) => (index % 64 > 30 && index % 64 < 36 && index < 40 * 64 ? 40 : value));
+
+async function settle(thumbnail: Uint8Array = DARTS) {
   await act(async () => {
-    hooks.settle!(photo());
+    hooks.settle!(photo(), thumbnail);
     await new Promise((resolve) => setTimeout(resolve, 0)); // let the proposal land
   });
 }
@@ -84,6 +95,7 @@ async function settle() {
 describe('the capture lab saves only what a person confirmed', () => {
   beforeEach(async () => {
     hooks.stored = [];
+    hooks.found = [{ x: 0, y: 103 }];
     URL.createObjectURL = () => 'blob:test';
     URL.revokeObjectURL = () => undefined;
     // Never a blind visit: the model proposes on every photograph here.
@@ -100,7 +112,7 @@ describe('the capture lab saves only what a person confirmed', () => {
     useMatchStore.setState((state) => ({
       mode: 'solo',
       remoteStream: null,
-      settings: { ...state.settings, calibration: { ...calibration, ts: 1 } },
+      settings: { ...state.settings, calibration: { ...calibration, ts: 1, reference: Array.from(EMPTY) } },
     }));
 
     hooks.detectorLoads = 0;
@@ -146,6 +158,80 @@ describe('the capture lab saves only what a person confirmed', () => {
     expect(frame!.darts[0]!.by).toBe('model');
     expect(frame!.model).toBe('test-model');
     expect(screen.getByText(/saved: 1 darts/i)).toBeDefined();
+  });
+
+  it('proposes the second dart of a tight treble 20, right beside the first', async () => {
+    await settle();
+    await press(/right — save it/i);
+    hooks.found = [
+      { x: 0.3, y: 103.2 },
+      { x: 4, y: 103 },
+    ];
+    await settle();
+    await press(/right — save it/i);
+    expect(hooks.stored[1]!.darts.map((dart) => dart.board)).toEqual([
+      { x: 0, y: 103 },
+      { x: 4, y: 103 },
+    ]);
+  });
+
+  it('proposes nothing after a full visit until the darts are out', async () => {
+    const visit = [
+      { x: 0, y: 103 },
+      { x: 4, y: 103 },
+      { x: -4, y: 103 },
+    ];
+    for (let n = 1; n <= 3; n += 1) {
+      hooks.found = visit.slice(0, n);
+      await settle();
+      await press(/right — save it/i);
+    }
+    expect(hooks.stored).toHaveLength(3);
+
+    // A hand reaching for the darts: all three still in, none carried.
+    await settle();
+    expect(screen.queryByRole('button', { name: /right — save it/i })).toBeNull();
+    expect(screen.getByText(/waits until they are out/i)).toBeDefined();
+
+    // The darts are out; the next one thrown is proposed again.
+    hooks.found = [];
+    await settle(EMPTY);
+    hooks.found = [{ x: 20, y: -40 }];
+    await settle();
+    expect(screen.getByRole('button', { name: /right — save it/i })).toBeDefined();
+  });
+
+  it('lets a person say the darts are out when the board does not look empty', async () => {
+    for (const n of [1, 2, 3]) {
+      hooks.found = [1, 2, 3].slice(0, n).map((k) => ({ x: k * 5, y: 103 }));
+      await settle();
+      await press(/right — save it/i);
+    }
+    await settle();
+    await press(/i pulled the darts out/i);
+    hooks.found = [{ x: 20, y: -40 }];
+    await settle();
+    expect(screen.getByRole('button', { name: /right — save it/i })).toBeDefined();
+  });
+
+  it('keeps a blind visit blind when its photograph is replaced', async () => {
+    for (const n of [1, 2, 3]) {
+      hooks.found = [1, 2, 3].slice(0, n).map((k) => ({ x: k * 5, y: 103 }));
+      await settle();
+      // Saving the third dart starts the next visit, which rolls blind...
+      if (n === 3) vi.mocked(Math.random).mockReturnValue(0.1);
+      await press(/right — save it/i);
+    }
+    hooks.found = [];
+    await settle(EMPTY);
+    // ...and stays blind through photographs that replace each other, however
+    // the dice would fall now.
+    vi.mocked(Math.random).mockReturnValue(0.99);
+    hooks.found = [{ x: 20, y: -40 }];
+    await settle();
+    await settle();
+    expect(screen.queryByRole('button', { name: /right — save it/i })).toBeNull();
+    expect(screen.getByText(/this visit is yours to mark/i)).toBeDefined();
   });
 
   it('asks before leaving with marks that are not saved', async () => {
