@@ -19,6 +19,7 @@ Graph contract, which the browser code relies on:
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 from pathlib import Path
 
@@ -105,7 +106,9 @@ def main() -> None:
     # A model fine-tuned from another carries everything that one was trained
     # on: the datasets, and the credit they are owed, come down the whole chain.
     chain = lineage(args.checkpoint)
-    oche_used = sorted({Path(p).name for link in chain for p in link.get("oche") or []})
+    # PowerShell hands "data/oche/*.zip" to training unexpanded, so a run may
+    # have recorded the pattern: name the files it matches, not the pattern.
+    oche_used = sorted({Path(f).name for link in chain for p in link.get("oche") or [] for f in (glob.glob(p) or [p])})
     deepdarts_used = any(link.get("deepdarts") for link in chain)
     dartscribe_used = any(link.get("dartscribe") for link in chain)
     init = Path(run_args["init"]).parent.name + "/" + Path(run_args["init"]).name if run_args.get("init") else None
