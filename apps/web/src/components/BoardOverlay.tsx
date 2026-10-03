@@ -11,7 +11,7 @@
  */
 
 import { applyHomography, boardWireframe, type Matrix3, type Point } from '@treblewise/core';
-import { useEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 export interface OverlayHandle {
   point: Point;
@@ -89,8 +89,28 @@ export function BoardOverlay({
     );
   }, [toImage]);
 
-  // Marker sizes are in image pixels, so they have to scale with the frame.
-  const unit = Math.max(width, height) / 100;
+  // Markers are drawn at a fixed size on screen, not in image pixels: the
+  // picture is shown at very different scales (a whole phone frame, or the
+  // board's square magnified on a laptop), and a marker that grew with it hid
+  // the very tip it was meant to sit on. `screen` is screen pixels per image
+  // pixel; until the overlay has been measured, a hundredth of the frame
+  // stands in for six screen pixels.
+  const [screen, setScreen] = useState(0);
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const rect = svg.getBoundingClientRect();
+      if (rect.width > 0 && width > 0) setScreen(rect.width / width);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, [width]);
+  /** A length in screen pixels, as image pixels. */
+  const px = (n: number) => (screen > 0 ? n / screen : (n * Math.max(width, height)) / 600);
+  const unit = px(6);
 
   const toImageSpace = (event: ReactPointerEvent): Point | null => {
     const svg = svgRef.current;
@@ -108,9 +128,25 @@ export function BoardOverlay({
     if (!point) return;
     moved.current = false;
 
-    // Grab whichever marker is under the finger, if any.
-    const near = (candidates: { img: Point }[]) =>
-      candidates.findIndex((c) => Math.hypot(c.img.x - point.x, c.img.y - point.y) < unit * 4);
+    // Grab the marker under the finger, if any: the nearest one, except that
+    // a mark of this photograph (new or proposed) wins over one carried from
+    // an earlier photograph. Two darts in a tight group sit within a finger
+    // of each other, and the one being placed is the one that needs moving.
+    const reach = px(24);
+    const near = (candidates: { img: Point; kind?: string }[]) => {
+      let best = -1;
+      let bestRank = Infinity;
+      candidates.forEach((c, index) => {
+        const distance = Math.hypot(c.img.x - point.x, c.img.y - point.y);
+        if (distance >= reach) return;
+        const rank = (c.kind === 'carried' ? reach : 0) + distance;
+        if (rank < bestRank) {
+          best = index;
+          bestRank = rank;
+        }
+      });
+      return best;
+    };
 
     const handleIndex = near(handles.map((h) => ({ img: h.point })));
     if (handleIndex >= 0 && onHandleMove) {
@@ -155,7 +191,7 @@ export function BoardOverlay({
         drag.current = null;
       }}
     >
-      <g fill="none" stroke="#3ddc84" strokeWidth={unit * 0.22} opacity={0.85}>
+      <g fill="none" stroke="#3ddc84" strokeWidth={px(1)} opacity={0.85}>
         {wires.map((points, index) => (
           <polyline key={index} points={points} />
         ))}
@@ -188,50 +224,51 @@ export function BoardOverlay({
         </g>
       ))}
 
-      {darts.map((dart, index) => (
-        <g key={index}>
-          <line
-            x1={dart.img.x - unit * 1.6}
-            y1={dart.img.y}
-            x2={dart.img.x + unit * 1.6}
-            y2={dart.img.y}
-            stroke="#ffffff"
-            strokeWidth={unit * 0.22}
-          />
-          <line
-            x1={dart.img.x}
-            y1={dart.img.y - unit * 1.6}
-            x2={dart.img.x}
-            y2={dart.img.y + unit * 1.6}
-            stroke="#ffffff"
-            strokeWidth={unit * 0.22}
-          />
-          <circle
-            cx={dart.img.x}
-            cy={dart.img.y}
-            r={unit * 1.9}
-            fill="none"
-            stroke={MARK_COLOUR[dart.kind ?? (dart.active ? 'new' : 'plain')]}
-            strokeWidth={unit * 0.3}
-            strokeDasharray={dart.kind === 'proposed' ? `${unit * 0.8} ${unit * 0.5}` : undefined}
-          />
-          <text
-            x={dart.img.x}
-            /* Staggered, because three darts in a cluster put their labels on
-               top of each other otherwise. */
-            y={dart.img.y - unit * 2.6 - index * unit * 2.4}
-            fill="#ffffff"
-            fontSize={unit * 2.6}
-            fontWeight={700}
-            textAnchor="middle"
-            paintOrder="stroke"
-            stroke="rgb(1 4 9 / 80%)"
-            strokeWidth={unit * 0.6}
-          >
-            {dart.label}
-          </text>
-        </g>
-      ))}
+      {darts.map((dart, index) => {
+        const { x, y } = dart.img;
+        // A thin cross with a gap in the middle, so the tip itself stays
+        // visible under the mark: placing it is lining the gap up on the tip.
+        const ticks = [
+          [x - px(12), y, x - px(3), y],
+          [x + px(3), y, x + px(12), y],
+          [x, y - px(12), x, y - px(3)],
+          [x, y + px(3), x, y + px(12)],
+        ];
+        return (
+          <g key={index}>
+            {ticks.map(([x1, y1, x2, y2], tick) => (
+              <line key={`halo-${tick}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(1 4 9 / 70%)" strokeWidth={px(2.5)} />
+            ))}
+            {ticks.map(([x1, y1, x2, y2], tick) => (
+              <line key={tick} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ffffff" strokeWidth={px(1)} />
+            ))}
+            <circle
+              cx={x}
+              cy={y}
+              r={px(8)}
+              fill="none"
+              stroke={MARK_COLOUR[dart.kind ?? (dart.active ? 'new' : 'plain')]}
+              strokeWidth={px(1.5)}
+              strokeDasharray={dart.kind === 'proposed' ? `${px(3)} ${px(2)}` : undefined}
+            />
+            <text
+              x={x}
+              /* Staggered, because three darts in a cluster put their labels on
+                 top of each other otherwise. */
+              y={y - px(15) - index * px(13)}
+              fill="#ffffff"
+              fontSize={px(12)}
+              fontWeight={700}
+              textAnchor="middle"
+              paintOrder="stroke"
+              stroke="rgb(1 4 9 / 80%)"
+              strokeWidth={px(3)}
+            >
+              {dart.label}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
