@@ -1,4 +1,4 @@
-import { formatHit, formatRoute, type Hit, type Point } from '@oche/core';
+import { formatHit, formatRoute, type Hit, type Point } from '@treblewise/core';
 import { useState } from 'react';
 
 import { Dartboard, type BoardDart } from '../components/Dartboard.js';

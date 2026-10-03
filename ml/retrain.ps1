@@ -51,8 +51,8 @@ function Step([string]$title, [string[]]$arguments) {
 $pretrained = 'runs/pretrain/best.pt'
 if ($Pretrain -or -not (Test-Path $pretrained)) {
     if (-not (Test-Path 'data/deepdarts')) { throw 'data/deepdarts is missing: see README.md, "Data".' }
-    Step 'Pretrain on DeepDarts' @('-m', 'oche_ml.train', '--deepdarts', 'data/deepdarts', '--epochs', $PretrainEpochs, '--workers', $Workers, '--out', 'runs/pretrain')
-    Step 'Evaluate on held-out DeepDarts sessions' @('-m', 'oche_ml.evaluate', '--checkpoint', $pretrained, '--deepdarts', 'data/deepdarts')
+    Step 'Pretrain on DeepDarts' @('-m', 'treblewise_ml.train', '--deepdarts', 'data/deepdarts', '--epochs', $PretrainEpochs, '--workers', $Workers, '--out', 'runs/pretrain')
+    Step 'Evaluate on held-out DeepDarts sessions' @('-m', 'treblewise_ml.evaluate', '--checkpoint', $pretrained, '--deepdarts', 'data/deepdarts')
 }
 
 $checkpoint = $pretrained
@@ -61,9 +61,9 @@ if (Test-Path 'data/dartscribe/throws') {
     $sideData = @('--dartscribe', 'data/dartscribe')
     $sideview = 'runs/sideview/best.pt'
     if ($Pretrain -or -not (Test-Path $sideview)) {
-        Step 'Fine-tune on side-view cameras (dartscribe)' (@('-m', 'oche_ml.train') + $sideData + @('--init', $pretrained,
+        Step 'Fine-tune on side-view cameras (dartscribe)' (@('-m', 'treblewise_ml.train') + $sideData + @('--init', $pretrained,
             '--epochs', 40, '--lr', '3e-4', '--workers', $Workers, '--out', 'runs/sideview'))
-        Step 'Evaluate on held-out dartscribe sessions' (@('-m', 'oche_ml.evaluate', '--checkpoint', $sideview) + $sideData)
+        Step 'Evaluate on held-out dartscribe sessions' (@('-m', 'treblewise_ml.evaluate', '--checkpoint', $sideview) + $sideData)
     }
     $checkpoint = $sideview
 } else {
@@ -73,19 +73,19 @@ if (Test-Path 'data/dartscribe/throws') {
 $exports = @(Get-ChildItem 'data/oche/*.zip' -ErrorAction SilentlyContinue)
 if ($exports.Count -gt 0) {
     Write-Host "`n$($exports.Count) export(s) of your board in data/oche" -ForegroundColor Cyan
-    Step 'Fine-tune on your board' (@('-m', 'oche_ml.train', '--oche', 'data/oche/*.zip') + $sideData + @('--init', $checkpoint,
+    Step 'Fine-tune on your board' (@('-m', 'treblewise_ml.train', '--oche', 'data/oche/*.zip') + $sideData + @('--init', $checkpoint,
         '--epochs', $FinetuneEpochs, '--lr', '3e-4', '--oche-repeat', $OcheRepeat, '--workers', $Workers, '--out', "runs/$Name"))
     $checkpoint = "runs/$Name/best.pt"
-    Step 'Evaluate on held-out visits of your board' @('-m', 'oche_ml.evaluate', '--checkpoint', $checkpoint, '--oche', 'data/oche/*.zip')
-    Step 'Draw its answers on your photographs' @('-m', 'oche_ml.preview', '--oche', 'data/oche/*.zip', '--checkpoint', $checkpoint, '--out', "runs/$Name/preview")
+    Step 'Evaluate on held-out visits of your board' @('-m', 'treblewise_ml.evaluate', '--checkpoint', $checkpoint, '--oche', 'data/oche/*.zip')
+    Step 'Draw its answers on your photographs' @('-m', 'treblewise_ml.preview', '--oche', 'data/oche/*.zip', '--checkpoint', $checkpoint, '--out', "runs/$Name/preview")
 } else {
     Write-Host "`nNo exports in data/oche: the model is $checkpoint." -ForegroundColor Yellow
 }
 
-Step 'Export to ONNX' @('-m', 'oche_ml.export', '--checkpoint', $checkpoint, '--name', $Name)
+Step 'Export to ONNX' @('-m', 'treblewise_ml.export', '--checkpoint', $checkpoint, '--name', $Name)
 
 if ($Publish) {
-    Step 'Upload a draft release' @('-m', 'oche_ml.publish', '--name', $Name)
+    Step 'Upload a draft release' @('-m', 'treblewise_ml.publish', '--name', $Name)
 } else {
-    Write-Host "`nTo release it: .\retrain.ps1 was run without -Publish; run  python -m oche_ml.publish --name $Name" -ForegroundColor Yellow
+    Write-Host "`nTo release it: .\retrain.ps1 was run without -Publish; run  python -m treblewise_ml.publish --name $Name" -ForegroundColor Yellow
 }

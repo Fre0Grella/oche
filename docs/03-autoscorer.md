@@ -140,7 +140,7 @@ one model instead of two. Both are evaluated; the doc will record which won.
 
 #### The rectified view, exactly
 
-Training (`ml/oche_ml/board.py`) and the browser must build the same square,
+Training (`ml/treblewise_ml/board.py`) and the browser must build the same square,
 or a model that passed its gate reads nonsense in the app:
 
 | | |

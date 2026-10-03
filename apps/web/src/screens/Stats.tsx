@@ -27,7 +27,7 @@ import {
   targetPoint,
   type MatchSnapshot,
   type PositionedDart,
-} from '@oche/core';
+} from '@treblewise/core';
 import { useEffect, useMemo, useState } from 'react';
 
 import { BandBars } from '../components/charts/BandBars.js';

@@ -8,7 +8,7 @@
  * bright patch can be read as "the treble 19" rather than "up and to the left".
  */
 
-import { BOARD, boardWireframe, type BoardGrid, type Point } from '@oche/core';
+import { BOARD, boardWireframe, type BoardGrid, type Point } from '@treblewise/core';
 import { useMemo } from 'react';
 
 const R = BOARD.boardRadius;

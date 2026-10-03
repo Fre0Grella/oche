@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .dartscribe import load_dartscribe
 from .deepdarts import load_deepdarts
-from .oche_export import load_export
+from .capture_export import load_export
 from .samples import Sample, split_of
 
 

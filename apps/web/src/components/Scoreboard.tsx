@@ -4,7 +4,7 @@
  * deliberately quiet.
  */
 
-import { formatRoute, matchStats, type MatchSnapshot } from '@oche/core';
+import { formatRoute, matchStats, type MatchSnapshot } from '@treblewise/core';
 
 import { useStrings } from '../i18n/index.js';
 

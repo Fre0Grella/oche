@@ -20,6 +20,7 @@ venv/
 # Datasets and model artefacts: never committed, see docs/08-licensing-and-data.md
 ml/data/
 # exports from the capture lab: your photographs, never committed
+treblewise-captures-*.zip
 oche-captures-*.zip
 ml/runs/
 ml/exports/

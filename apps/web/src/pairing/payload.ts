@@ -21,6 +21,8 @@ export interface PairingPayload {
   sdp: string;
 }
 
+// The project's old name, kept on purpose: it is part of the wire format, and
+// an installed copy from before the rename has to keep pairing with this one.
 const PREFIX = 'oche1';
 
 /**
@@ -226,7 +228,7 @@ export async function decodePayload(text: string): Promise<PairingPayload> {
   const trimmed = text.trim();
   const parts = trimmed.split('.');
   if (parts.length !== 4 || parts[0] !== PREFIX) {
-    throw new PairingPayloadError('not an oche pairing code');
+    throw new PairingPayloadError('not a treblewise pairing code');
   }
 
   const [, roleTag, encoding, data] = parts;

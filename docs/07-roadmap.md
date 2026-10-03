@@ -11,7 +11,7 @@ was needed.
 **Order changed, 2026-09-22.** The deploy half of A7 moved ahead of A4: a browser
 refuses camera access outside a secure context, so the capture lab cannot collect
 a single frame until the app is served over HTTPS. It is live at
-<https://fre0grella.github.io/oche/>; the PWA half of A7 is still outstanding.
+<https://fre0grella.github.io/treblewise/>; the PWA half of A7 is still outstanding.
 
 ## Track A — the app
 

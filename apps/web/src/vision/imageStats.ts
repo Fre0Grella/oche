@@ -2,7 +2,7 @@
  * What the picture itself looks like: bright enough, sharp enough, and still
  * the same view it was calibrated for.
  *
- * The geometry half of the setup coach lives in `@oche/core` (where the board
+ * The geometry half of the setup coach lives in `@treblewise/core` (where the board
  * is, which way to move). This half is about the pixels, and runs on the same
  * 64×64 greyscale crop of the board that the capture trigger uses.
  *

@@ -1,7 +1,7 @@
 /**
  * The game store: an event log in, a folded snapshot out.
  *
- * The store never computes a rule. It appends events, asks `@oche/core` what
+ * The store never computes a rule. It appends events, asks `@treblewise/core` what
  * the match looks like now, persists, and tells the caller what to say. That
  * split is why the rules have tests and the UI does not need them.
  */
@@ -16,7 +16,7 @@ import {
   type PlayerConfig,
   type Point,
   type X01Config,
-} from '@oche/core';
+} from '@treblewise/core';
 import { create } from 'zustand';
 
 import { announce } from '../caller/announce.js';
@@ -55,7 +55,8 @@ export interface PhoneStatus {
 /**
  * Remembered for the tab only, so a reload can say "you were paired, the phone
  * is gone" instead of pretending nothing happened. The connection itself
- * cannot survive a reload.
+ * cannot survive a reload. The key keeps the project's old name, so a tab
+ * open across the rename still finds it.
  */
 const SESSION_KEY = 'oche.session';
 
@@ -236,7 +237,7 @@ export const useMatchStore = create<MatchState>((set, get) => {
       }
 
       // A match in progress is resumed, but the landing page still comes first
-      // unless the address says otherwise: arriving at oche should explain what
+      // unless the address says otherwise: arriving at treblewise should explain what
       // it is before it drops you into someone else's half-finished leg.
       const recalled = recalledSession();
       const resolved: Screen = screen ?? (recalled ? 'lobby' : 'landing');

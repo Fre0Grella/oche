@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 
-from oche_ml.board import (
+from treblewise_ml.board import (
     RECT_SIZE,
     apply_h,
     board_to_rect,
@@ -13,7 +13,7 @@ from oche_ml.board import (
     solve_homography,
     wire_distance,
 )
-from oche_ml.deepdarts import DEEPDARTS_CALIBRATION_BOARD
+from treblewise_ml.deepdarts import DEEPDARTS_CALIBRATION_BOARD
 
 
 @pytest.mark.parametrize(

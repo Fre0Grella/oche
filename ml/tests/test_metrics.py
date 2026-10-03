@@ -1,8 +1,8 @@
 import numpy as np
 
-from oche_ml.board import score_at
-from oche_ml.decode import Tip
-from oche_ml.metrics import Tally
+from treblewise_ml.board import score_at
+from treblewise_ml.decode import Tip
+from treblewise_ml.metrics import Tally
 
 
 def tip(x, y, confidence=0.9):

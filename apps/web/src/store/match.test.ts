@@ -1,4 +1,4 @@
-import { hit, parseHit } from '@oche/core';
+import { hit, parseHit } from '@treblewise/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useMatchStore } from './match.js';

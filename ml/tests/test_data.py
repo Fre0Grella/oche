@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import torch
 
-from oche_ml.board import STRIDE, apply_h, board_to_rect
-from oche_ml.dataset import TipDataset, encode_targets
-from oche_ml.decode import decode
-from oche_ml.oche_export import load_export
+from treblewise_ml.board import STRIDE, apply_h, board_to_rect
+from treblewise_ml.dataset import TipDataset, encode_targets
+from treblewise_ml.decode import decode
+from treblewise_ml.capture_export import load_export
 
 from .conftest import real_exports
 
@@ -81,8 +81,8 @@ def test_photographs_the_model_marked_never_reach_val_or_test(synthetic_export, 
     import json
     import zipfile
 
-    from oche_ml import sources
-    from oche_ml.samples import split_of
+    from treblewise_ml import sources
+    from treblewise_ml.samples import split_of
 
     marked = tmp_path / "marked.zip"
     with zipfile.ZipFile(synthetic_export) as src, zipfile.ZipFile(marked, "w") as dst:
@@ -103,8 +103,8 @@ def test_photographs_the_model_marked_never_reach_val_or_test(synthetic_export, 
 
 
 def test_one_model_marked_photograph_sends_its_whole_visit_to_train(synthetic_export):
-    from oche_ml import sources
-    from oche_ml.samples import split_of
+    from treblewise_ml import sources
+    from treblewise_ml.samples import split_of
 
     samples, _ = load_export(synthetic_export)
     test_group = next(g for g in (f"g{i}" for i in range(1000)) if split_of(g) == "test")
@@ -120,7 +120,7 @@ def test_reviewed_only_keeps_the_photographs_a_person_checked(synthetic_export, 
     import json
     import zipfile
 
-    from oche_ml import sources
+    from treblewise_ml import sources
 
     checked = tmp_path / "checked.zip"
     with zipfile.ZipFile(synthetic_export) as src, zipfile.ZipFile(checked, "w") as dst:

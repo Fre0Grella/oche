@@ -11,7 +11,7 @@
  * `docs/03` is built around.
  */
 
-import { assessBoardView, boardRegion, formatHit, type Hit, type Point } from '@oche/core';
+import { assessBoardView, boardRegion, formatHit, type Hit, type Point } from '@treblewise/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fill, useStrings } from '../i18n/index.js';

@@ -12,7 +12,7 @@
  * stays short.
  */
 
-import type { InOutRule, PlayerConfig, X01Config } from '@oche/core';
+import type { InOutRule, PlayerConfig, X01Config } from '@treblewise/core';
 import { useState } from 'react';
 
 import { useStrings } from '../i18n/index.js';

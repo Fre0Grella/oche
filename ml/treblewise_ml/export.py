@@ -1,7 +1,7 @@
 """
 Exports a checkpoint to ONNX for ONNX Runtime Web, and proves the export.
 
-    python -m oche_ml.export --checkpoint ml/runs/finetune/best.pt --name tips-v1
+    python -m treblewise_ml.export --checkpoint ml/runs/finetune/best.pt --name tips-v1
 
 Writes ml/exports/<name>.onnx and ml/models/<name>/CARD.md. The card is public
 (it becomes the release notes) and names data by file name only. The export is
@@ -111,7 +111,7 @@ def main() -> None:
     init = Path(run_args["init"]).parent.name + "/" + Path(run_args["init"]).name if run_args.get("init") else None
     card = f"""# {args.name}
 
-Dart-tip detector for the oche autoscorer (model B, docs/03-autoscorer.md).
+Dart-tip detector for the treblewise autoscorer (model B, docs/03-autoscorer.md).
 
 | | |
 |---|---|
@@ -125,7 +125,7 @@ Dart-tip detector for the oche autoscorer (model B, docs/03-autoscorer.md).
 
 ## Training data
 
-- oche exports: {', '.join(oche_used) or 'none'}
+- treblewise exports: {', '.join(oche_used) or 'none'}
 - DeepDarts: {'yes — McNally, Vats, Wong, McPhee, *DeepDarts: Modeling Keypoints as Objects for Automatic Scorekeeping in Darts using a Single Camera*, CVPRW 2021. IEEE DataPort, DOI 10.21227/05e7-xs69, CC BY.' if deepdarts_used else 'not used'}
 - dartscribe: {'yes — Ercan Akyürek, *dartscribe* dataset, Hugging Face `geforcefan/dartscribe`, CC BY-SA 4.0 (attribution and share-alike).' if dartscribe_used else 'not used'}
 
@@ -137,12 +137,12 @@ Dart-tip detector for the oche autoscorer (model B, docs/03-autoscorer.md).
 
 ## The gate
 
-{'Not evaluated: no held-out photographs of the target board were used. This model may propose darts in the capture lab; it may not score games.' if not oche_used else 'Paste `python -m oche_ml.evaluate` on the held-out test split here before this model scores games.'}
+{'Not evaluated: no held-out photographs of the target board were used. This model may propose darts in the capture lab; it may not score games.' if not oche_used else 'Paste `python -m treblewise_ml.evaluate` on the held-out test split here before this model scores games.'}
 """
     (card_dir / "CARD.md").write_text(card, encoding="utf-8")
     print(f"wrote {onnx_path} ({size_mb:.1f} MB, sha256 {digest[:16]}...), ONNX matches PyTorch to {worst:.1e}")
     print(f"wrote {card_dir / 'CARD.md'}")
-    print(f"next: python -m oche_ml.publish --name {args.name}")
+    print(f"next: python -m treblewise_ml.publish --name {args.name}")
 
 
 if __name__ == "__main__":

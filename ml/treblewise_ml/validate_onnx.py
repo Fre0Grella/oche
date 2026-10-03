@@ -1,7 +1,7 @@
 """
 Checks an exported tip model against the contract the browser relies on.
 
-    python -m oche_ml.validate_onnx exports/tips-v1.onnx --sha256 <expected>
+    python -m treblewise_ml.validate_onnx exports/tips-v1.onnx --sha256 <expected>
 
 Needs only numpy and onnxruntime — no torch — because it also runs in the
 GitHub Action that publishes a model release, before anything is made public:
@@ -24,6 +24,8 @@ import numpy as np
 
 from .board import OUT_SIZE, RECT_HALF_MM, RECT_SIZE, STRIDE
 
+# The keys keep the project's old name on purpose: every released model
+# already carries them.
 SPEC = {
     "oche.rect_size": str(RECT_SIZE),
     "oche.rect_half_mm": f"{RECT_HALF_MM:g}",

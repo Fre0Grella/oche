@@ -1,10 +1,10 @@
-# oche
+# treblewise
 
 A web app for playing darts: X01 scoring, a spoken caller, checkout help, deep
 statistics — and a camera autoscorer that reads the board and scores your darts
 for you, running entirely in the browser.
 
-**Play it: <https://fre0grella.github.io/oche/>** — X01, tap-the-board scoring and
+**Play it: <https://fre0grella.github.io/treblewise/>** — X01, tap-the-board scoring and
 the spoken caller work today, on a phone or a laptop.
 
 > **Status: planning + foundation.** Nothing here claims to score darts from a

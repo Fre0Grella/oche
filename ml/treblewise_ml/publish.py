@@ -1,7 +1,7 @@
 """
 Uploads an exported model as a DRAFT GitHub release, for the Action to publish.
 
-    python -m oche_ml.publish --name tips-v1
+    python -m treblewise_ml.publish --name tips-v1
 
 What leaves this machine: `exports/<name>.onnx` and its card. Nothing else —
 not the .pt checkpoints, not the photographs, not the runs. The ONNX file is the
@@ -47,7 +47,7 @@ def main() -> None:
     model = ML / "exports" / f"{args.name}.onnx"
     card = ML / "models" / args.name / "CARD.md"
     if not model.exists() or not card.exists():
-        sys.exit(f"missing {model} or {card}: run python -m oche_ml.export first")
+        sys.exit(f"missing {model} or {card}: run python -m treblewise_ml.export first")
     if card_sha(card) != sha256(model):
         sys.exit(f"{card} does not describe {model} (SHA-256 differs): export again")
     problems = validate(model)

@@ -11,11 +11,11 @@ if (import.meta.env.DEV) {
   void Promise.all([
     import('./pairing/session.js'),
     import('./pairing/payload.js'),
-    import('@oche/core'),
+    import('@treblewise/core'),
     import('./store/match.js'),
   ]).then(([session, payload, core, store]) => {
-    const dev = window as unknown as { __oche?: unknown };
-    dev.__oche = {
+    const dev = window as unknown as { __treblewise?: unknown };
+    dev.__treblewise = {
       PairingConnection: session.PairingConnection,
       compactSdp: payload.compactSdp,
       core,

@@ -100,7 +100,7 @@ describe('pairing payloads', () => {
   });
 
   it('stays small enough to scan across a desk', async () => {
-    // Every browser oche runs on has CompressionStream; the raw path exists
+    // Every browser treblewise runs on has CompressionStream; the raw path exists
     // only so an old one degrades to a bigger QR rather than no pairing.
     expect(compressionAvailable()).toBe(true);
 
@@ -117,7 +117,7 @@ describe('pairing payloads', () => {
   it('refuses anything that is not one of ours, with a message a person can act on', async () => {
     await expect(decodePayload('https://example.com')).rejects.toBeInstanceOf(PairingPayloadError);
     await expect(decodePayload('oche1.h.z.@@@@')).rejects.toBeInstanceOf(Error);
-    await expect(decodePayload('oche9.h.z.AAAA')).rejects.toThrow(/not an oche pairing code/);
+    await expect(decodePayload('oche9.h.z.AAAA')).rejects.toThrow(/not a treblewise pairing code/);
   });
 
   it('refuses a code that decodes to something that is not an SDP', async () => {

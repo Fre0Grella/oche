@@ -66,6 +66,9 @@ def _visit_groups(frames: list[dict]) -> dict[str, str]:
     Frame id → group. Lab frames of one visit are near-copies (the same darts,
     one more each time), so a visit is the unit that goes to train or test.
     Game frames are grouped by match, for the same reason.
+
+    The keys keep the project's old name on purpose: `split_of` hashes them,
+    and a new prefix would move held-out photographs into training.
     """
     groups: dict[str, str] = {}
     current: str | None = None

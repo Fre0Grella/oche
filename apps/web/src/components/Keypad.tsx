@@ -4,7 +4,7 @@
  * difference.
  */
 
-import { BULL, MISS, OUTER_BULL, hit, type Hit } from '@oche/core';
+import { BULL, MISS, OUTER_BULL, hit, type Hit } from '@treblewise/core';
 import { useState } from 'react';
 
 import { useStrings } from '../i18n/index.js';

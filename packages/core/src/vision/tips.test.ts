@@ -6,7 +6,7 @@ import type { Hit } from '../board/geometry.js';
 import type { Matrix3 } from './homography.js';
 import { BOARD_TO_RECT, TIP_GRID, decodeTips, imageToRect, prescale, warpToTensor } from './tips.js';
 
-/** Written by `python -m oche_ml.parity_fixture`; see that file. */
+/** Written by `python -m treblewise_ml.parity_fixture`; see that file. */
 interface ParityFixture {
   rect: { size: number; boardToRect: number[] };
   toBoard: number[];

@@ -2,7 +2,7 @@ name: Publish model
 
 # Turns a draft model release into a published one, then redeploys the app so
 # it ships with that model. The draft is made on the machine that trained the
-# model (`python -m oche_ml.publish`, see ml/README.md): training needs a GPU and
+# model (`python -m treblewise_ml.publish`, see ml/README.md): training needs a GPU and
 # data that never leaves that machine, so nothing here trains or sees the data.
 #
 # Before publishing, the draft's file is checked against the model card
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       name:
-        description: Model name, as given to oche_ml.export (e.g. tips-v1)
+        description: Model name, as given to treblewise_ml.export (e.g. tips-v1)
         required: true
 
 permissions:
@@ -47,7 +47,7 @@ jobs:
 
       - name: Download the draft
         run: |
-          state=$(gh release view "model-$NAME" --json isDraft --jq .isDraft) || { echo "::error::no release model-$NAME: run python -m oche_ml.publish --name $NAME"; exit 1; }
+          state=$(gh release view "model-$NAME" --json isDraft --jq .isDraft) || { echo "::error::no release model-$NAME: run python -m treblewise_ml.publish --name $NAME"; exit 1; }
           [ "$state" = "true" ] || { echo "::error::model-$NAME is already published"; exit 1; }
           gh release download "model-$NAME" --pattern "$NAME.onnx" --dir "$RUNNER_TEMP/model"
 
@@ -59,7 +59,7 @@ jobs:
         working-directory: ml
         run: |
           pip install --quiet numpy onnxruntime
-          python -m oche_ml.validate_onnx "$RUNNER_TEMP/model/$NAME.onnx" --sha256 "${{ steps.card.outputs.sha256 }}"
+          python -m treblewise_ml.validate_onnx "$RUNNER_TEMP/model/$NAME.onnx" --sha256 "${{ steps.card.outputs.sha256 }}"
 
       - name: Publish
         run: gh release edit "model-$NAME" --draft=false --latest=false

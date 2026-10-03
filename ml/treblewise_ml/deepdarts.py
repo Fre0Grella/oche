@@ -7,7 +7,7 @@ Checked against the authors' code (github.com/wmcnally/deep-darts:
 not yet run on the files themselves, which need an IEEE login. Before training
 on it, run
 
-    python -m oche_ml.preview --deepdarts ml/data/deepdarts --out ml/runs/preview-dd
+    python -m treblewise_ml.preview --deepdarts ml/data/deepdarts --out ml/runs/preview-dd
 
 and look at the pictures: the drawn board must sit on the real wires with the
 20 at the top, and every drawn tip must be on a dart. If the board is rotated
@@ -21,7 +21,7 @@ What it expects, as distributed:
 
 `xy` is a list of points normalised to the cropped image (0–1): the first four
 are calibration points on the outer edge of the double ring, the rest are dart
-tips. The calibration points are NOT oche's four: DeepDarts puts them on the
+tips. The calibration points are NOT treblewise's four: DeepDarts puts them on the
 sector wires 9° either side of the vertical and horizontal — top between the
 20 and the 5, bottom between the 3 and the 17, left between the 11 and the 8,
 right between the 6 and the 13.

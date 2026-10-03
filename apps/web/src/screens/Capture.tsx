@@ -35,7 +35,7 @@ import {
   formatHit,
   type Hit,
   type Point,
-} from '@oche/core';
+} from '@treblewise/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoardOverlay, type OverlayHandle } from '../components/BoardOverlay.js';
@@ -115,7 +115,7 @@ interface PendingFrame {
  * With the autoscorer proposing, one visit in five is still left for a person
  * to mark from scratch. A visit where the model proposed anything can never be
  * in a test set (the model would be marking its own homework; see
- * ml/oche_ml/sources.py), so without these the test set would only grow when
+ * ml/treblewise_ml/sources.py), so without these the test set would only grow when
  * proposals are switched off. It is decided per visit, not per photograph:
  * the three photographs of a visit are one unit to the split, and a visit is
  * only clean if the model was kept out of all of it.
@@ -611,7 +611,7 @@ export function Capture() {
     try {
       const frames = await listFrames(Number.MAX_SAFE_INTEGER);
       const blob = await exportFrames(frames);
-      download(blob, `oche-captures-${new Date().toISOString().slice(0, 10)}.zip`);
+      download(blob, `treblewise-captures-${new Date().toISOString().slice(0, 10)}.zip`);
     } finally {
       setBusy(false);
     }

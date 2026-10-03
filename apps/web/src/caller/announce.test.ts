@@ -1,4 +1,4 @@
-import { parseHit, reduceMatch, dartEvent, type MatchEvent, type X01Config } from '@oche/core';
+import { parseHit, reduceMatch, dartEvent, type MatchEvent, type X01Config } from '@treblewise/core';
 import { describe, expect, it } from 'vitest';
 
 import { announce } from './announce.js';

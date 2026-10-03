@@ -1,7 +1,7 @@
 """
 Scores a checkpoint on held-out photographs and says whether it passes the gate.
 
-    python -m oche_ml.evaluate --checkpoint ml/runs/finetune/best.pt --oche ml/data/oche/*.zip
+    python -m treblewise_ml.evaluate --checkpoint ml/runs/finetune/best.pt --oche ml/data/oche/*.zip
 
 By default only the `test` split is used: groups no training run has seen.
 """

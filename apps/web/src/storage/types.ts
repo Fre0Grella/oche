@@ -4,7 +4,7 @@
  * other.
  */
 
-import type { Hit, Matrix3, Point, X01Config, MatchEvent } from '@oche/core';
+import type { Hit, Matrix3, Point, X01Config, MatchEvent } from '@treblewise/core';
 
 export interface StoredMatch {
   id: string;

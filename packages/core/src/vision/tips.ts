@@ -3,7 +3,7 @@
  * view it is shown, the warp into it, and turning its two output arrays into
  * darts. The model itself runs in the web app; everything here is testable
  * without a browser, and `__fixtures__/tips-parity.json` holds it to the Python
- * that trained the model (`ml/oche_ml/board.py`, `dataset.py`, `decode.py`).
+ * that trained the model (`ml/treblewise_ml/board.py`, `dataset.py`, `decode.py`).
  *
  * The spec is written down in docs/03-autoscorer.md, "The rectified view,
  * exactly". Change it there, in Python and here, or not at all.

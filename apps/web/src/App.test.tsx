@@ -1,4 +1,4 @@
-import { hit } from '@oche/core';
+import { hit } from '@treblewise/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';

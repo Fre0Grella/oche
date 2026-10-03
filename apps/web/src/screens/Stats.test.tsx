@@ -1,4 +1,4 @@
-import { hit, targetPoint, type Point } from '@oche/core';
+import { hit, targetPoint, type Point } from '@treblewise/core';
 import { render, screen, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';

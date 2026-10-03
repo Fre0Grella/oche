@@ -71,7 +71,11 @@ ship.
 
 ## Naming and trademarks
 
-"oche" is a common noun for the throwing line and is used as the project name.
-DartsMind is a separate product referenced only as prior art. No PDC/WDF
+The project is called "treblewise". It was called "oche" until October 2026,
+and was renamed because several darts scoring apps already use that name; the
+old name survives only in identifiers that stored data, installed copies or
+released models depend on (the IndexedDB name, the pairing prefix, the ML
+sample keys and ONNX metadata keys). A trademark search (EUIPO/TMview) is still
+to be done before anything is sold under the new name. DartsMind is a separate product referenced only as prior art. No PDC/WDF
 branding, no dartboard manufacturer's marks, and no claim of certification is
 used anywhere in the app.

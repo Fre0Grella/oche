@@ -20,7 +20,7 @@ import {
 export { DEFAULT_SETTINGS };
 export type { CapturedFrame, Profile, Settings, StoredMatch } from './types.js';
 
-interface OcheDB extends DBSchema {
+interface TreblewiseDB extends DBSchema {
   matches: {
     key: string;
     value: StoredMatch;
@@ -41,10 +41,12 @@ interface OcheDB extends DBSchema {
   };
 }
 
+// The project's old name, kept on purpose: renaming the database would leave
+// every saved match, profile and capture behind in the old one.
 const DB_NAME = 'oche';
 const DB_VERSION = 3;
 
-let dbPromise: Promise<IDBPDatabase<OcheDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<TreblewiseDB>> | null = null;
 
 /** In-memory stand-in, so tests and private-mode browsers still work. */
 const memory = {
@@ -57,10 +59,10 @@ function hasIndexedDB(): boolean {
   return typeof indexedDB !== 'undefined';
 }
 
-async function db(): Promise<IDBPDatabase<OcheDB> | null> {
+async function db(): Promise<IDBPDatabase<TreblewiseDB> | null> {
   if (!hasIndexedDB()) return null;
   if (!dbPromise) {
-    dbPromise = openDB<OcheDB>(DB_NAME, DB_VERSION, {
+    dbPromise = openDB<TreblewiseDB>(DB_NAME, DB_VERSION, {
       upgrade(database, oldVersion) {
         if (oldVersion < 1) {
           const matches = database.createObjectStore('matches', { keyPath: 'id' });
@@ -90,7 +92,7 @@ async function db(): Promise<IDBPDatabase<OcheDB> | null> {
  * no in-memory fallback for them: without IndexedDB the capture lab says so
  * rather than filling a tab's heap and losing the lot on reload.
  */
-export async function framesDb(): Promise<IDBPDatabase<OcheDB> | null> {
+export async function framesDb(): Promise<IDBPDatabase<TreblewiseDB> | null> {
   return db();
 }
 

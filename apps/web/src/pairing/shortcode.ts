@@ -284,7 +284,7 @@ export function decodeShortCode(text: string): AnswerFacts {
   if (bytes.length < 38) throw new ShortCodeError('that code is too short to be a pairing code');
 
   const flags = bytes[0]!;
-  if ((flags & 0x0f) !== VERSION) throw new ShortCodeError('that code came from a different version of oche');
+  if ((flags & 0x0f) !== VERSION) throw new ShortCodeError('that code came from a different version of treblewise');
 
   const ufragLength = bytes[1]!;
   const pwdLength = bytes[2]!;

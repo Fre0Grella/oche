@@ -18,7 +18,7 @@ import {
   type Hit,
   type Matrix3,
   type Point,
-} from '@oche/core';
+} from '@treblewise/core';
 
 import { zip } from '../lib/zip.js';
 import { framesDb } from './db.js';
@@ -87,10 +87,10 @@ export async function countFrames(): Promise<{ total: number; labelled: number; 
   };
 }
 
-const EXPORT_README = `# oche capture export
+const EXPORT_README = `# treblewise capture export
 
 Photographs of a dartboard with the tip of each dart labelled, produced by the
-capture lab in https://github.com/Fre0Grella/oche
+capture lab in https://github.com/Fre0Grella/treblewise
 
 - frames/<id>.jpg   the photograph, straight from the camera, unmodified
 - labels.json       one entry per frame

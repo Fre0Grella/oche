@@ -1,8 +1,8 @@
 """
 Draws what the model will be shown, for a person to check by eye.
 
-    python -m oche_ml.preview --oche oche-captures.zip --out ml/runs/preview
-    python -m oche_ml.preview --deepdarts ml/data/deepdarts --out ml/runs/preview-dd --limit 24
+    python -m treblewise_ml.preview --oche treblewise-captures.zip --out ml/runs/preview
+    python -m treblewise_ml.preview --deepdarts ml/data/deepdarts --out ml/runs/preview-dd --limit 24
 
 Each picture is the rectified board with the board's wires drawn over it from
 the spec, and every labelled tip as a cross with its score. If the drawn wires

@@ -4,17 +4,17 @@ Trains the dart-tip model.
 Two stages, as docs/03 plans them:
 
     # 1. learn what a dart tip looks like, from DeepDarts
-    python -m oche_ml.train --deepdarts ml/data/deepdarts --epochs 40 --out ml/runs/pretrain
+    python -m treblewise_ml.train --deepdarts ml/data/deepdarts --epochs 40 --out ml/runs/pretrain
 
     # 2. learn your board, your light and your camera angle
-    python -m oche_ml.train --oche ml/data/oche/*.zip --init ml/runs/pretrain/best.pt \\
+    python -m treblewise_ml.train --oche ml/data/oche/*.zip --init ml/runs/pretrain/best.pt \\
         --epochs 60 --lr 3e-4 --out ml/runs/finetune
 
 Both at once also works (`--oche ... --deepdarts ...`), with `--oche-repeat` to
 show your own photographs more often than their number alone would.
 
     # smoke test: memorise a handful of photographs, no augmentation
-    python -m oche_ml.train --oche oche-captures.zip --overfit --epochs 150 --out ml/runs/overfit
+    python -m treblewise_ml.train --oche treblewise-captures.zip --overfit --epochs 150 --out ml/runs/overfit
 """
 
 from __future__ import annotations

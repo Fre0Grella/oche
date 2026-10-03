@@ -10,7 +10,7 @@
  * right, and if they drift the person can see exactly where.
  */
 
-import { applyHomography, boardWireframe, type Matrix3, type Point } from '@oche/core';
+import { applyHomography, boardWireframe, type Matrix3, type Point } from '@treblewise/core';
 import { useEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 
 export interface OverlayHandle {

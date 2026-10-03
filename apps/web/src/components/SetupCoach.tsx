@@ -8,7 +8,7 @@
  * with a colour you can read from the oche.
  */
 
-import type { Direction, ViewAssessment, ViewIssueCode } from '@oche/core';
+import type { Direction, ViewAssessment, ViewIssueCode } from '@treblewise/core';
 
 import { useStrings } from '../i18n/index.js';
 import type { ImageIssueCode, ImageQuality } from '../vision/imageStats.js';

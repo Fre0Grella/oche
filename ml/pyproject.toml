@@ -1,7 +1,7 @@
 [project]
-name = "oche-ml"
+name = "treblewise-ml"
 version = "0.1.0"
-description = "Training, evaluation and ONNX export for the oche dart-tip model."
+description = "Training, evaluation and ONNX export for the treblewise dart-tip model."
 requires-python = ">=3.10"
 license = "AGPL-3.0-or-later"
 

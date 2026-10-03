@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 import pytest
 
-from oche_ml.board import apply_h, score_at, solve_homography
-from oche_ml.oche_export import CALIBRATION_BOARD
+from treblewise_ml.board import apply_h, score_at, solve_homography
+from treblewise_ml.capture_export import CALIBRATION_BOARD
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -74,4 +74,4 @@ def synthetic_export(tmp_path: Path) -> Path:
 
 
 def real_exports() -> list[Path]:
-    return sorted(REPO.glob("oche-captures-*.zip")) + sorted((REPO / "ml" / "data" / "oche").glob("*.zip"))
+    return sorted(REPO.glob("treblewise-captures-*.zip")) + sorted(REPO.glob("oche-captures-*.zip")) + sorted((REPO / "ml" / "data" / "oche").glob("*.zip"))

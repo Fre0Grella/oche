@@ -11,7 +11,7 @@
  * A photograph confirmed here is recorded as `reviewed`, and that is exported.
  */
 
-import { formatHit } from '@oche/core';
+import { formatHit } from '@treblewise/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { BoardOverlay } from '../components/BoardOverlay.js';

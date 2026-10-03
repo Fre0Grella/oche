@@ -63,7 +63,7 @@ export function Landing() {
 
         <footer className="landing-foot">
           <span>{t.landing.foot}</span>
-          <a href="https://github.com/Fre0Grella/oche" target="_blank" rel="noreferrer">
+          <a href="https://github.com/Fre0Grella/treblewise" target="_blank" rel="noreferrer">
             {t.landing.source}
           </a>
         </footer>

@@ -5,7 +5,7 @@
  * without a microphone, a browser or a game.
  */
 
-import type { MatchSnapshot } from '@oche/core';
+import type { MatchSnapshot } from '@treblewise/core';
 
 import { strings } from '../i18n/index.js';
 

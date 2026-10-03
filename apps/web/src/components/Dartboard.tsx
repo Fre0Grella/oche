@@ -22,7 +22,7 @@ import {
   targetPoint,
   type Hit,
   type Point,
-} from '@oche/core';
+} from '@treblewise/core';
 import { useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 const R = BOARD.boardRadius;

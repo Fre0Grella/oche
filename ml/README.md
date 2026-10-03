@@ -34,7 +34,7 @@ Put things here; none of it is committed (see `.gitignore` and
 [docs/08](../docs/08-licensing-and-data.md)):
 
 ```
-ml/data/oche/        your exports from the app: oche-captures-YYYY-MM-DD.zip
+ml/data/oche/        your exports from the app: treblewise-captures-YYYY-MM-DD.zip (older ones: oche-captures-…)
 ml/data/deepdarts/   the DeepDarts dataset, unpacked (labels.pkl + cropped_images/)
 ml/data/dartscribe/  the dartscribe dataset (throws/, boards/): side-view cameras
 ```
@@ -53,9 +53,9 @@ licensed CC BY. It needs a free IEEE account, so it is downloaded by hand, never
 by a script. About 16 000 images, mostly one face-on setup: it teaches what a
 dart tip looks like, not what your room looks like.
 
-> The DeepDarts reader (`oche_ml/deepdarts.py`) has not yet been run on the
+> The DeepDarts reader (`treblewise_ml/deepdarts.py`) has not yet been run on the
 > real download. Before the first training run, look at it:
-> `python -m oche_ml.preview --deepdarts data/deepdarts --out runs/preview-dd --limit 30`.
+> `python -m treblewise_ml.preview --deepdarts data/deepdarts --out runs/preview-dd --limit 30`.
 > The green board must sit on the real wires, with the 20 at the top. If it is
 > rotated by a sector or mirrored, the fix is the four points in
 > `DEEPDARTS_CALIBRATION_BOARD` and nothing else.
@@ -77,7 +77,7 @@ right. Your phone, at about 45° and 70 cm, sits between the two datasets.
 
 ```powershell
 python -c "from huggingface_hub import snapshot_download; snapshot_download('geforcefan/dartscribe', repo_type='dataset', local_dir='data/dartscribe', allow_patterns=['README.md','throws/*/*/data.yaml','throws/*/*/throw-*.jpg','boards/*/*'])"
-python -m oche_ml.preview --dartscribe data/dartscribe --out runs/preview-ds --limit 30
+python -m treblewise_ml.preview --dartscribe data/dartscribe --out runs/preview-ds --limit 30
 ```
 
 Whether share-alike reaches a model trained on the data is not settled law. A
@@ -100,28 +100,28 @@ With only a few visits the test split can be empty, and the commands say so.
 
 ```powershell
 # 0. Look before you train. Rectified boards, wires drawn from the spec, your tips.
-python -m oche_ml.preview --oche data/oche/*.zip --out runs/preview
+python -m treblewise_ml.preview --oche data/oche/*.zip --out runs/preview
 
 # 1. Pretrain on DeepDarts. The first epoch prints how long one takes.
-python -m oche_ml.train --deepdarts data/deepdarts --epochs 40 --out runs/pretrain
+python -m treblewise_ml.train --deepdarts data/deepdarts --epochs 40 --out runs/pretrain
 
 # 2. Fine-tune on your board.
-python -m oche_ml.train --oche data/oche/*.zip --init runs/pretrain/best.pt --epochs 60 --lr 3e-4 --out runs/finetune
+python -m treblewise_ml.train --oche data/oche/*.zip --init runs/pretrain/best.pt --epochs 60 --lr 3e-4 --out runs/finetune
 #    or both together, showing your photographs more often:
-python -m oche_ml.train --oche data/oche/*.zip --deepdarts data/deepdarts --oche-repeat 20 --init runs/pretrain/best.pt --out runs/mixed
+python -m treblewise_ml.train --oche data/oche/*.zip --deepdarts data/deepdarts --oche-repeat 20 --init runs/pretrain/best.pt --out runs/mixed
 
 # 3. The number that matters: held-out photographs of your board.
-python -m oche_ml.evaluate --checkpoint runs/finetune/best.pt --oche data/oche/*.zip
+python -m treblewise_ml.evaluate --checkpoint runs/finetune/best.pt --oche data/oche/*.zip
 
 # 4. See what it got wrong.
-python -m oche_ml.preview --oche data/oche/*.zip --checkpoint runs/finetune/best.pt --out runs/preview-model
+python -m treblewise_ml.preview --oche data/oche/*.zip --checkpoint runs/finetune/best.pt --out runs/preview-model
 
 # 5. Export for the browser. Checks ONNX against PyTorch, writes a model card.
-python -m oche_ml.export --checkpoint runs/finetune/best.pt --name tips-v2
+python -m treblewise_ml.export --checkpoint runs/finetune/best.pt --name tips-v2
 #    then release it: see "Releasing a model" below.
 ```
 
-`python -m oche_ml.train --oche <one export> --overfit --epochs 150 --out runs/overfit`
+`python -m treblewise_ml.train --oche <one export> --overfit --epochs 150 --out runs/overfit`
 is the smoke test: with augmentation off it should memorise a handful of
 photographs almost exactly. If it cannot, something in the pipeline is broken,
 and no amount of data will help.
@@ -148,10 +148,10 @@ The first model is trained on DeepDarts alone, before there are enough clean
 photographs of your own board to fine-tune on:
 
 ```powershell
-python -m oche_ml.preview --deepdarts data/deepdarts --out runs/preview-dd --limit 30   # look first
-python -m oche_ml.train --deepdarts data/deepdarts --epochs 40 --out runs/pretrain
-python -m oche_ml.evaluate --checkpoint runs/pretrain/best.pt --deepdarts data/deepdarts
-python -m oche_ml.export --checkpoint runs/pretrain/best.pt --name tips-v1
+python -m treblewise_ml.preview --deepdarts data/deepdarts --out runs/preview-dd --limit 30   # look first
+python -m treblewise_ml.train --deepdarts data/deepdarts --epochs 40 --out runs/pretrain
+python -m treblewise_ml.evaluate --checkpoint runs/pretrain/best.pt --deepdarts data/deepdarts
+python -m treblewise_ml.export --checkpoint runs/pretrain/best.pt --name tips-v1
 ```
 
 DeepDarts is mostly shot face-on; your camera is well off to the side. The
@@ -169,8 +169,8 @@ run a model in a visitor's browser without giving the browser the model, and
 the site and the repository are public. Only a server could keep it private.
 
 ```powershell
-python -m oche_ml.export --checkpoint runs/pretrain/best.pt --name tips-v1
-python -m oche_ml.publish --name tips-v1        # uploads a DRAFT release: visible only to you
+python -m treblewise_ml.export --checkpoint runs/pretrain/best.pt --name tips-v1
+python -m treblewise_ml.publish --name tips-v1        # uploads a DRAFT release: visible only to you
 git add models/tips-v1/CARD.md; git commit -m "Model card for tips-v1"; git push
 gh workflow run model-release.yml -f name=tips-v1
 ```
@@ -225,17 +225,17 @@ board for you.
 
 | | |
 |---|---|
-| `oche_ml/board.py` | Scoring (a port of `packages/core`), homographies, the rectified-view spec |
-| `oche_ml/oche_export.py` | Reads and checks the app's export zip |
-| `oche_ml/deepdarts.py` | Reads DeepDarts |
-| `oche_ml/dartscribe.py` | Reads dartscribe (side-view cameras), with its own fixed split |
-| `oche_ml/dataset.py` | Warping, augmentation, heatmap targets |
-| `oche_ml/model.py` | The network and its losses |
-| `oche_ml/decode.py` | Heatmaps → tips → scores; the reference for the browser's decoder |
-| `oche_ml/metrics.py` | PCS, per-dart accuracy, error kinds, confidently-wrong |
-| `oche_ml/validate_onnx.py` | The browser's contract for an exported model; also run by the release workflow |
-| `oche_ml/parity_fixture.py` | Writes the fixture that holds the TypeScript decoder (`packages/core/src/vision/tips.ts`) to this package |
-| `oche_ml/{train,evaluate,preview,export,publish}.py` | The commands |
+| `treblewise_ml/board.py` | Scoring (a port of `packages/core`), homographies, the rectified-view spec |
+| `treblewise_ml/capture_export.py` | Reads and checks the app's export zip |
+| `treblewise_ml/deepdarts.py` | Reads DeepDarts |
+| `treblewise_ml/dartscribe.py` | Reads dartscribe (side-view cameras), with its own fixed split |
+| `treblewise_ml/dataset.py` | Warping, augmentation, heatmap targets |
+| `treblewise_ml/model.py` | The network and its losses |
+| `treblewise_ml/decode.py` | Heatmaps → tips → scores; the reference for the browser's decoder |
+| `treblewise_ml/metrics.py` | PCS, per-dart accuracy, error kinds, confidently-wrong |
+| `treblewise_ml/validate_onnx.py` | The browser's contract for an exported model; also run by the release workflow |
+| `treblewise_ml/parity_fixture.py` | Writes the fixture that holds the TypeScript decoder (`packages/core/src/vision/tips.ts`) to this package |
+| `treblewise_ml/{train,evaluate,preview,export,publish}.py` | The commands |
 
 ## Licences
 

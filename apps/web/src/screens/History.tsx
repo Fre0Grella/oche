@@ -1,4 +1,4 @@
-import { matchStats, reduceMatch } from '@oche/core';
+import { matchStats, reduceMatch } from '@treblewise/core';
 
 import { useStrings } from '../i18n/index.js';
 import { useMatchStore } from '../store/match.js';

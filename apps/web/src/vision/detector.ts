@@ -28,7 +28,7 @@ import {
   type Hit,
   type Matrix3,
   type Point,
-} from '@oche/core';
+} from '@treblewise/core';
 import type { InferenceSession, Tensor } from 'onnxruntime-web';
 
 import type { Calibration } from '../storage/types.js';
@@ -70,7 +70,7 @@ export function loadManifest(): Promise<ModelManifest | null> {
 /** The shipped model, loaded once; null when the site has none or it cannot run here. */
 export function loadDetector(): Promise<Detector | null> {
   loading ??= load().catch((cause: unknown) => {
-    console.warn('[oche] no tip model:', cause);
+    console.warn('[treblewise] no tip model:', cause);
     return null;
   });
   return loading;

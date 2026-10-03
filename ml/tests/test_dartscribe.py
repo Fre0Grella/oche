@@ -5,10 +5,10 @@ import numpy as np
 import pytest
 import yaml
 
-from oche_ml import sources
-from oche_ml.board import SECTORS, apply_h, board_to_rect
-from oche_ml.dartscribe import load_dartscribe, session_split, wire_angle
-from oche_ml.dataset import TipDataset
+from treblewise_ml import sources
+from treblewise_ml.board import SECTORS, apply_h, board_to_rect
+from treblewise_ml.dartscribe import load_dartscribe, session_split, wire_angle
+from treblewise_ml.dataset import TipDataset
 
 from .conftest import TO_IMAGE, draw_board
 

@@ -1,4 +1,4 @@
-import type { Hit } from '@oche/core';
+import type { Hit } from '@treblewise/core';
 
 /**
  * English strings, including the caller's vocabulary.
@@ -60,7 +60,7 @@ export function numberToWords(value: number): string {
 export const en = {
   locale: 'en',
   app: {
-    name: 'oche',
+    name: 'treblewise',
     tagline: 'Darts scoring, calling and statistics.',
   },
   setup: {
@@ -282,7 +282,7 @@ export const en = {
 
   role: {
     title: 'Which device is this one?',
-    subtitle: 'Open oche on both, and tell each one what it is. Start with the computer.',
+    subtitle: 'Open treblewise on both, and tell each one what it is. Start with the computer.',
     back: 'Back',
     computer: {
       title: 'This is the computer',

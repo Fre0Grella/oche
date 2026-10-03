@@ -39,7 +39,7 @@ from pathlib import Path
 import numpy as np
 
 from .board import DOUBLE_OUTER_RADIUS, SECTORS, apply_h, solve_homography
-from .oche_export import CALIBRATION_BOARD
+from .capture_export import CALIBRATION_BOARD
 from .samples import Sample
 
 # Which sessions are held out. A hash of the session name, as used elsewhere,
@@ -129,7 +129,7 @@ def load_dartscribe(root: str | Path, max_fit_px: float = 3.0) -> tuple[list[Sam
                 counts["poor calibration"] += 1
                 continue
             to_image = np.linalg.inv(to_board)
-            # The four landmarks oche calibrates with, as this camera sees them:
+            # The four landmarks treblewise calibrates with, as this camera sees them:
             # training jitters these, as a person dragging markers would.
             calib_image = apply_h(to_image, CALIBRATION_BOARD)
 
